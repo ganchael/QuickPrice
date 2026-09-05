@@ -42,7 +42,7 @@ export default function QuickPriceApp({ user }: Props) {
       if (!response.ok) throw new Error(data.error || '商品库加载失败。');
       if (data.ownerId !== user.userId) throw new Error('登录账号已改变，请刷新页面后重新加载对应商品库。');
       setOwnerId(data.ownerId);
-      setProducts(data.products); setRevision(data.revision); setUpdatedAt(data.updatedAt); setReady(true); setCloudError('');
+      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setUpdatedAt(data.updatedAt); setReady(true); setCloudError('');
       setSelected(current => data.products.some((p: Product) => p.id === current) ? current : data.products[0]?.id ?? '');
     return data.products;
     } catch (e) { setCloudError((e as Error).message); setReady(false); return undefined; }
@@ -56,7 +56,7 @@ export default function QuickPriceApp({ user }: Props) {
       const data = await response.json() as CatalogResponse;
       if (response.status === 401) throw new Error('登录已过期，请重新登录后再保存。');
       if (!response.ok) throw new Error(data.error || '保存失败，请重试。');
-      setProducts(data.products); setRevision(data.revision); setUpdatedAt(data.updatedAt); setCloudError('');
+      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setUpdatedAt(data.updatedAt); setCloudError('');
       setSelected(current => data.products.some((p: Product) => p.id === current) ? current : data.products[0]?.id ?? '');
     } finally { setSaving(false); }
   };
@@ -74,7 +74,7 @@ export default function QuickPriceApp({ user }: Props) {
   const summary = summarize(lines);
   const categories = Array.from(new Set(products.map(p => p.category)));
   const filteredProducts = products.filter(p => category === 'all' || p.category === category);
-  const selectedProduct = products.find(p => p.id === selected);
+  const selectedProduct = filteredProducts.find(p => p.id === selected);
   const selectedCents = selectedProduct ? moneyCents(selectedProduct.price) : null;
   const quantity = quantityValue(addQuantity);
   const entryAmount = selectedCents !== null && quantity !== null ? money(selectedCents * quantity) : null;

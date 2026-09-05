@@ -9,6 +9,7 @@ export function useMobileViewport() {
     const update = () => {
       root.style.setProperty('--visible-height', `${viewport?.height ?? window.innerHeight}px`);
       root.style.setProperty('--visible-top', `${viewport?.offsetTop ?? 0}px`);
+      root.dataset.compactViewport = String((viewport?.height ?? window.innerHeight) < 360);
       const focused = document.activeElement;
       const isEditing = focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement;
       root.dataset.keyboardOpen = String(isEditing && window.innerHeight - (viewport?.height ?? window.innerHeight) > 120);
@@ -22,7 +23,7 @@ export function useMobileViewport() {
     return () => {
       viewport?.removeEventListener('resize', update); viewport?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update); document.removeEventListener('focusin', update); document.removeEventListener('focusout', update);
-      root.style.removeProperty('--visible-height'); root.style.removeProperty('--visible-top'); delete root.dataset.keyboardOpen;
+      root.style.removeProperty('--visible-height'); root.style.removeProperty('--visible-top'); delete root.dataset.keyboardOpen; delete root.dataset.compactViewport;
     };
   }, []);
 }
