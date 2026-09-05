@@ -3,8 +3,8 @@ import { env } from 'cloudflare:workers';
 import { getCatalogDatabase } from '@/db';
 import { hex, tokenHash, verifyPassword } from '@/lib/auth-crypto';
 
-export const ACCOUNT_ID = 'account:zlw';
-export const ACCOUNT_NAME = 'zlw';
+export const ACCOUNT_ID = 'account:888';
+export const ACCOUNT_NAME = '888';
 export const SESSION_COOKIE = 'quickprice_session';
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 export async function getAccountUser() {
