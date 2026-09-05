@@ -1,8 +1,10 @@
+import { redirect } from 'next/navigation';
 import QuickPriceApp from './quickprice-app';
-import { getChatGPTUser, chatGPTSignInPath, chatGPTSignOutPath } from './chatgpt-auth';
-
+import { getAccountUser } from './account-auth';
 export const dynamic = 'force-dynamic';
-export default async function Page() {
-  const user = await getChatGPTUser();
-  return <QuickPriceApp user={user ? { userId: user.userId, displayName: user.displayName, email: user.email } : null} signInUrl={chatGPTSignInPath('/')} signOutUrl={chatGPTSignOutPath('/')} />;
+async function AuthenticatedWorkspace() {
+  const user = await getAccountUser();
+  if (!user) redirect('/login');
+  return <QuickPriceApp user={user} />;
 }
+export default function Page() { return <AuthenticatedWorkspace />; }

@@ -8,7 +8,7 @@ import { moneyCents, searchProducts, type Product } from '@/lib/pricing';
 import { catalogKey, mergeCatalog, validateProduct } from '@/lib/catalog';
 import type { ImportResult } from '@/lib/import-workbook';
 
-type Props = { open: boolean; onOpenChange: (open: boolean) => void; products: Product[]; signedIn: boolean; signInUrl: string; ready: boolean; saving: boolean; cloudError: string; updatedAt: string | null; onRefresh: () => Promise<Product[] | undefined>; onSave: (products: Product[]) => Promise<void> };
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; products: Product[]; ready: boolean; saving: boolean; cloudError: string; updatedAt: string | null; onRefresh: () => Promise<Product[] | undefined>; onSave: (products: Product[]) => Promise<void> };
 export function CatalogManager(props: Props) {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
@@ -20,7 +20,7 @@ export function CatalogManager(props: Props) {
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const visible = searchProducts(props.products, query);
-  const canEdit = props.signedIn && props.ready && !props.saving && !reading && !syncing;
+  const canEdit = props.ready && !props.saving && !reading && !syncing;
   const commit = async (products: Product[]) => {
     try { await props.onSave(products); setError(''); return true; }
     catch (e) { setError(e instanceof Error ? e.message : '保存失败，请重试。'); return false; }
@@ -68,7 +68,7 @@ export function CatalogManager(props: Props) {
 
   return <Dialog open={props.open} onOpenChange={close}><DialogContent className="catalog-manager" showCloseButton={false}>
     <div className="dialog-heading"><div><DialogTitle>商品价格库</DialogTitle><DialogDescription>导入表格、编辑商品，通过简称或名称快速检索。</DialogDescription></div><DialogClose className="icon-button" aria-label="关闭商品价格库" disabled={props.saving || syncing}><X size={20} /></DialogClose></div>
-    {!props.signedIn ? <div className="catalog-login"><Cloud size={34} /><h3>登录，随时管理你的商品库</h3><p>导入和修改保存到云端，同一账号在手机、电脑上同步。商品库仅对该账号可见。</p><a href={props.signInUrl} target="_top" className="primary-button">使用 ChatGPT 登录</a></div> : <>
+    <>
       <div className="cloud-status"><span><Cloud size={15} />{props.saving ? '正在保存到云端…' : !props.ready ? '正在加载商品库…' : props.updatedAt ? `已同步 · ${new Date(props.updatedAt).toLocaleString('zh-CN', { hour12: false })}` : '云端商品库已就绪'}</span><button className="text-button" onClick={() => void sync()} disabled={props.saving || reading || syncing}><RefreshCw size={14} />{syncing ? '正在同步…' : editing || preview ? '同步，保留输入' : '同步云端'}</button></div>
       {props.cloudError && <p role="alert" className="field-error">{props.cloudError}</p>}
       {editing ? <section className="product-editor"><button className="text-button" onClick={() => { setEditing(null); setError(''); }} disabled={props.saving || syncing}><ArrowLeft size={15} />返回商品列表（放弃未保存改动）</button><fieldset className="product-editor-grid" disabled={props.saving || syncing}>
@@ -91,6 +91,6 @@ export function CatalogManager(props: Props) {
         {!props.ready && !props.cloudError ? <div className="catalog-loading"><LoaderCircle className="animate-spin" />加载云端商品库</div> : visible.length === 0 ? <div className="catalog-empty"><FileSpreadsheet size={32} /><h3>{query ? '没有找到相关商品' : '把商品表格带进来'}</h3><p>{query ? '试试产品简称、完整名称或规格中的关键词。' : '选择你的价格表，核对识别结果后即可一键导入。'}</p></div> : <div className="catalog-table-scroll"><Table><TableHeader><TableRow><TableHead>简称 / 名称</TableHead><TableHead>规格 / 品类</TableHead><TableHead className="catalog-price">单价</TableHead><TableHead><span className="sr-only">编辑</span></TableHead></TableRow></TableHeader><TableBody>{visible.map(p => <TableRow key={p.id}><TableCell><div className="catalog-product-name"><strong>{p.shortName || '未填简称'}</strong><span>{p.name}</span></div></TableCell><TableCell><div className="catalog-product-spec"><span>{p.specification || '未填规格'}</span><small>{p.category}</small></div></TableCell><TableCell className="catalog-price"><strong>{moneyCents(p.price) === null ? '待定' : `¥${p.price}`}</strong><small> / {p.unit}</small></TableCell><TableCell><button className="icon-button" aria-label={`编辑 ${p.shortName} ${p.name} ${p.specification}`} onClick={() => { setEditing({ ...p }); setEditingBase({ ...p }); setError(''); }} disabled={!canEdit}><Pencil size={16} /></button></TableCell></TableRow>)}</TableBody></Table></div>}
       </>}
       {error && <p role="alert" className="field-error">{error}</p>}
-    </>}
+    </>
   </DialogContent></Dialog>;
 }

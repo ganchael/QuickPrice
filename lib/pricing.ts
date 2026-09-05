@@ -35,11 +35,11 @@ export function parseQuote(text: string, products: Product[]): QuoteLine[] {
   return entries.map((source, index) => {
     const clean = normalize(source);
     const explicit = clean.match(/^(.+?)\s*[×X*]\s*([^×X*]*)$/);
-    const spaced = clean.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:个|件|套|支|只))?$/);
+    const spaced = clean.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:个|件|套|支|只|盒|瓶))?$/);
     const choices = [spaced, explicit].filter((m): m is RegExpMatchArray => m !== null);
     const match = choices.find(m => products.some(p => productTerms(p).some(term => normalize(term) === m[1].trim()))) ?? explicit ?? spaced;
     const parsed = (match?.[1] ?? clean).trim();
-    const quantity = (match?.[2] ?? '').replace(/\s*(个|件|套|支|只)$/, '').trim();
+    const quantity = (match?.[2] ?? '').replace(/\s*(个|件|套|支|只|盒|瓶)$/, '').trim();
     const candidates = products.filter(p => productTerms(p).some(n => normalize(n) === parsed));
     const product = candidates.length === 1 ? candidates[0] : undefined;
     return { id: `parsed-${index}`, source, parsed, productId: product?.id ?? '', quantity, price: product?.price ?? '', match: product ? 'exact' : 'none' };

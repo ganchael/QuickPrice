@@ -298,3 +298,19 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: -.35px; }
 }
 
 @media(max-width:740px) { .quote-line { grid-template-columns: 1fr 1fr; gap: 12px 18px; } .quantity-cell,.unit-price-cell { min-width:0; } .stepper { grid-template-columns:44px minmax(0,1fr) 44px; } .line-amount { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding-top:2px; } .line-amount .mobile-label { margin:0; } .line-amount strong { height:28px; font-size:16px; } .remove-line { width:44px; } .help-button { width:44px; } }
+
+/* Account entry shares the workspace's restrained palette and type. */
+.login-page { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; background: #f5f6f8; }
+.login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; color: #19212e; font-size: 25px; font-weight: 680; letter-spacing: -.8px; }
+.login-card { width: 100%; max-width: 410px; padding: 34px; background: #fff; border: 1px solid #e9ecf1; border-radius: 24px; box-shadow: 0 16px 50px #17294207; }
+.login-lock { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 23px; border-radius: 14px; background: #edf4ff; color: #0071e3; }
+.login-card h1 { margin: 0 0 9px; color: #17212e; font-size: 25px; line-height: 1.35; font-weight: 650; letter-spacing: -.7px; }
+.login-intro { margin: 0 0 29px; color: #7a8492; font-size: 15px; line-height: 1.6; }
+.login-card fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 20px; }
+.login-card label { display: grid; gap: 9px; font-size: 14px; font-weight: 550; color: #3c4756; }
+.login-card input { width: 100%; min-height: 48px; font-size: 16px; }
+.login-submit { width: 100%; min-height: 48px; margin-top: 27px; justify-content: center; gap: 10px; font-size: 16px; }
+.login-note { margin: 20px 0 0; color: #89919d; font-size: 13px; text-align: center; }
+.login-footer { margin: 30px 0 0; color: #929ba7; font-size: 13px; }
+button.account-link { background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; }
+@media (max-width: 480px) { .login-page { padding: 32px 20px; } .login-card { padding: 28px 24px; } .login-brand { margin-bottom: 26px; } }

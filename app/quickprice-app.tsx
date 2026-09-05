@@ -8,35 +8,35 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { Toaster, toast } from '@/components/ui/toast';
 import { CatalogManager } from '@/components/catalog-manager';
 import { ProductPicker } from '@/components/product-picker';
-import { productsSeed, sampleText, parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, productLabel, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
+import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, productLabel, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
 
 type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
-type Props = { user: { userId: string; displayName: string; email: string } | null; signInUrl: string; signOutUrl: string };
-export default function QuickPriceApp({ user, signInUrl, signOutUrl }: Props) {
-  const [products, setProducts] = useState<Product[]>(user ? [] : productsSeed);
-  const [lines, setLines] = useState<QuoteLine[]>(() => user ? [] : parseQuote(sampleText, productsSeed));
-  const [text, setText] = useState(user ? '' : sampleText);
+type Props = { user: { userId: string; displayName: string } };
+export default function QuickPriceApp({ user }: Props) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [lines, setLines] = useState<QuoteLine[]>([]);
+  const [text, setText] = useState('');
   const [mode, setMode] = useState('batch');
   const [category, setCategory] = useState('all');
-  const [selected, setSelected] = useState(user ? '' : 'gnd10');
+  const [selected, setSelected] = useState('');
   const [addQuantity, setAddQuantity] = useState('1');
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [inputError, setInputError] = useState('');
-  const [isExample, setIsExample] = useState(!user);
-  const [ready, setReady] = useState(!user);
+  const [isExample, setIsExample] = useState(false);
+  const [ready, setReady] = useState(false);
   const [revision, setRevision] = useState(0);
   const [ownerId, setOwnerId] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [cloudError, setCloudError] = useState('');
   const [saving, setSaving] = useState(false);
   const refreshCatalog = useCallback(async () => {
-    if (!user) return;
     try {
       const response = await fetch('/api/catalog', { cache: 'no-store' });
       const data = await response.json() as CatalogResponse;
+      if (response.status === 401) { window.location.replace('/login'); return; }
       if (!response.ok) throw new Error(data.error || '商品库加载失败。');
       if (data.ownerId !== user.userId) throw new Error('登录账号已改变，请刷新页面后重新加载对应商品库。');
       setOwnerId(data.ownerId);
@@ -47,16 +47,27 @@ export default function QuickPriceApp({ user, signInUrl, signOutUrl }: Props) {
   }, [user]);
   useEffect(() => { const pending = setTimeout(() => { void refreshCatalog(); }, 0); return () => clearTimeout(pending); }, [refreshCatalog]);
   const saveCatalog = async (next: Product[]) => {
-    if (!user || !ready || ownerId !== user.userId) throw new Error('请先登录并加载云端商品库。');
+    if (!ready || ownerId !== user.userId) throw new Error('请先登录并加载云端商品库。');
     setSaving(true);
     try {
       const response = await fetch('/api/catalog', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ products: next, revision, ownerId }) });
       const data = await response.json() as CatalogResponse;
+      if (response.status === 401) throw new Error('登录已过期，请重新登录后再保存。');
       if (!response.ok) throw new Error(data.error || '保存失败，请重试。');
       setProducts(data.products); setRevision(data.revision); setUpdatedAt(data.updatedAt); setCloudError('');
       setSelected(current => data.products.some((p: Product) => p.id === current) ? current : data.products[0]?.id ?? '');
     } finally { setSaving(false); }
   };
+  const [loggingOut, setLoggingOut] = useState(false);
+  const signOut = async () => {
+    setLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('退出失败，请重试。');
+      window.location.replace('/login');
+    } catch (e) { toast.add({ title: (e as Error).message, type: 'error' }); setLoggingOut(false); }
+  };
+  const sampleText = products.slice(0, 3).map((p, i) => `${p.name}${p.specification ? ` ${p.specification}` : ''} × ${[10, 5, 2][i]}`).join('\n');
   const id = useRef(0);
   const summary = summarize(lines);
   const categories = Array.from(new Set(products.map(p => p.category)));
@@ -91,11 +102,11 @@ export default function QuickPriceApp({ user, signInUrl, signOutUrl }: Props) {
   return <Toaster>
     <header className="topbar"><div className="nav-inner">
       <a className="brand" href="#main" aria-label="QuickPrice 首页"><span className="brand-icon"><Zap size={23} fill="currentColor" /></span><span>QuickPrice<span className="brand-sub">快速计价助手</span></span></a>
-      <div className="nav-actions">{user ? <a className="account-link" href={signOutUrl} target="_top" title={user.email}>退出登录</a> : <a className="account-link" href={signInUrl} target="_top">登录同步</a>}<button className="nav-button" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>产品价格库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
+      <div className="nav-actions"><button className="account-link" onClick={() => void signOut()} disabled={loggingOut || saving}>{loggingOut ? '正在退出…' : '退出登录'}</button><button className="nav-button" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>产品价格库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
     </div></header>
     <main id="main" className="workspace">
       <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />你的轻量计价工作台</div><h1>每一笔，<span>算得清楚。</span></h1><p>输入清单，即刻匹配。让报价简单一点。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
-      <div className="account-banner"><span>{user ? `云端商品库 · ${user.displayName}` : '登录后可导入 Excel，并在手机与电脑间同步商品库'}</span>{user ? <button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button> : <a href={signInUrl} target="_top" className="text-button">登录管理 <ArrowRight size={14} /></a>}</div>
+      <div className="account-banner"><span>云端商品库 · {user.displayName}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button></div>
       <div className="workspace-grid">
         <aside className="input-column">
           <section className="panel input-panel">
@@ -119,7 +130,7 @@ export default function QuickPriceApp({ user, signInUrl, signOutUrl }: Props) {
             {inputError && <p role="alert" className="field-error">{inputError}</p>}
           </section>
           <div className="tips-block"><span className="tips-icon"><Zap size={17} /></span><div><h3>少一点重复，多一点效率</h3><p>可直接粘贴客户清单。无法识别的型号，手动选一下就好。</p><button className="text-button" onClick={() => setHelpOpen(true)}>查看输入规则 <ArrowRight size={13} /></button></div></div>
-          <div className="catalog-shortcut"><span><Package size={16} />{products.length} 条{user ? '云端商品规格' : '示例商品规格'}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>管理 <ArrowRight size={13} /></button></div>
+          <div className="catalog-shortcut"><span><Package size={16} />{products.length} 条云端商品规格</span><button className="text-button" onClick={() => setCatalogOpen(true)}>管理 <ArrowRight size={13} /></button></div>
         </aside>
         <section className="results-column" aria-label="计价结果">
           <div className="stats-panel"><div className="stat"><span><Layers3 size={15} />计价项目</span><strong>{summary.count}<small>项</small></strong></div><div className="stat"><span><CheckCheck size={15} />已匹配</span><strong>{summary.matched}<small>项</small></strong></div><div className="stat"><span><ListChecks size={15} />精确匹配</span><strong>{summary.exact}<small>项</small></strong></div><div className="stat"><span><Package size={15} />已计价数量</span><strong>{summary.quantity}<small>总量</small></strong></div></div>
@@ -136,12 +147,12 @@ export default function QuickPriceApp({ user, signInUrl, signOutUrl }: Props) {
           </section>
           <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{summary.pending ? '已确认金额' : '合计金额'}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · 单价 × 数量</span><span>{summary.pending ? '完善全部项目后可导出' : '核对后即可导出报价'}</span></div></section>
           <div className="action-bar"><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
-          <p className="session-note">{user ? '商品库在云端保存；当前报价为临时清单，离开前请导出。' : '当前为示例报价。登录后可导入和编辑自己的商品库。'}</p>
+          <p className="session-note">商品库在云端保存；当前报价为临时清单，离开前请导出。</p>
         </section>
       </div>
       <footer className="page-footer"><span className="footer-brand"><Zap size={13} />QuickPrice</span><span>简单输入，清晰报价。</span></footer>
     </main>
-    <CatalogManager open={catalogOpen} onOpenChange={setCatalogOpen} products={products} signedIn={!!user} signInUrl={signInUrl} ready={ready} saving={saving} cloudError={cloudError} updatedAt={updatedAt} onRefresh={refreshCatalog} onSave={saveCatalog} />
+    <CatalogManager open={catalogOpen} onOpenChange={setCatalogOpen} products={products} ready={ready} saving={saving} cloudError={cloudError} updatedAt={updatedAt} onRefresh={refreshCatalog} onSave={saveCatalog} />
     <Dialog open={helpOpen} onOpenChange={setHelpOpen}><DialogContent className="help-dialog" showCloseButton={false}><div className="dialog-heading"><DialogTitle>快速上手</DialogTitle><DialogClose className="icon-button" aria-label="关闭使用说明"><X size={20} /></DialogClose></div><DialogDescription>从客户清单到报价，只需三个步骤。</DialogDescription><ol className="help-list"><li><strong>输入型号与数量</strong><p>每行一个项目，支持 SM5×20、SM5*20、SM5x20 或 SM5 20盒。也可用分号分隔；逗号会分隔项目，请勿在数字中使用千位分隔符。</p></li><li><strong>核对匹配与单价</strong><p>支持产品简称、完整名称和名称加规格。不区分大小写；同名或同简称有多种规格时，请在匹配框搜索并选择具体规格，系统不会猜测价格。</p></li><li><strong>调整数量，导出报价</strong><p>数量为正整数，单价最多两位小数。金额按分精确计算。全部项目完善后可复制报价或导出 Excel 可打开的 CSV 文件。</p></li></ol></DialogContent></Dialog>
     <AlertDialog open={resetOpen} onOpenChange={setResetOpen}><AlertDialogContent><AlertDialogTitle>开始一份新报价？</AlertDialogTitle><AlertDialogDescription>当前清单和输入内容将清空。需要保留的报价，请先导出。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel>保留当前报价</AlertDialogCancel><AlertDialogAction onClick={() => { setLines([]); setText(''); setIsExample(false); setInputError(''); setResetOpen(false); }}>新建报价</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <Dialog open={copyOpen} onOpenChange={setCopyOpen}><DialogContent><DialogTitle>手动复制报价</DialogTitle><DialogDescription>浏览器未允许自动复制，请长按或全选以下内容复制。</DialogDescription><textarea className="quote-textarea" readOnly value={quoteText(lines, products)} onFocus={e => e.target.select()} aria-label="报价文本" /></DialogContent></Dialog>

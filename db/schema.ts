@@ -6,3 +6,14 @@ export const catalogs = sqliteTable('catalogs', {
   revision: integer('revision').notNull().default(1),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const authSessions = sqliteTable('auth_sessions', {
+  tokenHash: text('token_hash').primaryKey(),
+  userId: text('user_id').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+});
+export const loginAttempts = sqliteTable('login_attempts', {
+  attemptKey: text('attempt_key').primaryKey(),
+  attempts: integer('attempts').notNull(),
+  resetAt: integer('reset_at').notNull(),
+});

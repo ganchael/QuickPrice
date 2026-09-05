@@ -1,4 +1,4 @@
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { getAccountUser, isSameOrigin } from '@/app/account-auth';
 import { getCatalogDatabase } from '@/db';
 import { validateCatalog } from '@/lib/catalog';
 
@@ -7,7 +7,7 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 type CatalogRecord = { products_json: string; revision: number; updated_at: string };
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getAccountUser();
   if (!user) return json({ error: '请先登录后管理商品库。' }, 401);
   try {
     const record = await getCatalogDatabase().prepare('SELECT products_json, revision, updated_at FROM catalogs WHERE user_id = ?').bind(user.userId).first<CatalogRecord>();
@@ -16,10 +16,9 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getAccountUser();
   if (!user) return json({ error: '登录已失效，请重新登录。' }, 401);
-  const origin = request.headers.get('origin');
-  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site') return json({ error: '请从本站保存商品库。' }, 403);
+  if (!isSameOrigin(request)) return json({ error: '请从本站保存商品库。' }, 403);
   if (!request.headers.get('content-type')?.includes('application/json')) return json({ error: '请求格式不正确。' }, 415);
   let payload: { products?: unknown; revision?: unknown; ownerId?: unknown };
   let products;
