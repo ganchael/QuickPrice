@@ -1,11 +1,11 @@
-export type Product = { id: string; name: string; category: string; price: string; aliases: string[] };
+export type Product = { id: string; shortName: string; name: string; specification: string; unit: string; category: string; price: string; aliases: string[] };
 export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none' };
 export const productsSeed: Product[] = [
-  { id: 'gnd10', name: 'GND10', category: 'GND 系列', price: '75.00', aliases: [] },
-  { id: 'tsm5', name: 'TSM5', category: 'TSM 系列', price: '240.00', aliases: [] },
-  { id: 'ml10', name: 'ML10/MT2', category: 'ML 系列', price: '90.00', aliases: ['ML10', 'MT2'] },
-  { id: 'nj100', name: 'NJ100', category: 'NJ 系列', price: '60.00', aliases: [] },
-  { id: 'ad20', name: 'AD20', category: '其他配件', price: '70.00', aliases: [] },
+  { id: 'gnd10', name: 'GND10', shortName: 'GND10', specification: '', unit: '件', category: 'GND 系列', price: '75.00', aliases: [] },
+  { id: 'tsm5', name: 'TSM5', shortName: 'TSM5', specification: '', unit: '件', category: 'TSM 系列', price: '240.00', aliases: [] },
+  { id: 'ml10', name: 'ML10/MT2', shortName: 'ML10/MT2', specification: '', unit: '件', category: 'ML 系列', price: '90.00', aliases: ['ML10', 'MT2'] },
+  { id: 'nj100', name: 'NJ100', shortName: 'NJ100', specification: '', unit: '件', category: 'NJ 系列', price: '60.00', aliases: [] },
+  { id: 'ad20', name: 'AD20', shortName: 'AD20', specification: '', unit: '件', category: '其他配件', price: '70.00', aliases: [] },
 ];
 export const sampleText = 'GND10 × 20\nGND10 × 30\nTSM5 × 20\nML10 × 5\nNJ100 × 15\nAD20 × 20';
 export const MAX_LINES = 200;
@@ -36,10 +36,11 @@ export function parseQuote(text: string, products: Product[]): QuoteLine[] {
     const clean = normalize(source);
     const explicit = clean.match(/^(.+?)\s*[×X*]\s*([^×X*]*)$/);
     const spaced = clean.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:个|件|套|支|只))?$/);
-    const match = explicit ?? spaced;
+    const choices = [spaced, explicit].filter((m): m is RegExpMatchArray => m !== null);
+    const match = choices.find(m => products.some(p => productTerms(p).some(term => normalize(term) === m[1].trim()))) ?? explicit ?? spaced;
     const parsed = (match?.[1] ?? clean).trim();
     const quantity = (match?.[2] ?? '').replace(/\s*(个|件|套|支|只)$/, '').trim();
-    const candidates = products.filter(p => [p.name, ...p.aliases].some(n => normalize(n) === parsed));
+    const candidates = products.filter(p => productTerms(p).some(n => normalize(n) === parsed));
     const product = candidates.length === 1 ? candidates[0] : undefined;
     return { id: `parsed-${index}`, source, parsed, productId: product?.id ?? '', quantity, price: product?.price ?? '', match: product ? 'exact' : 'none' };
   });
@@ -56,13 +57,27 @@ export function issue(line: QuoteLine): string {
   if (moneyCents(line.price) === null) return '单价需为 0–999999.99，最多两位小数';
   return '';
 }
+export function productTerms(product: Product): string[] {
+  const base = [product.shortName, product.name, ...product.aliases].filter(Boolean);
+  return product.specification ? [...base, ...base.map(term => `${term} ${product.specification}`)] : base;
+}
+export function productLabel(p: Product): string {
+  return [p.shortName && normalize(p.shortName) !== normalize(p.name) ? p.shortName : '', p.name, p.specification].filter(Boolean).join(' · ');
+}
+export function searchProducts(products: Product[], query: string): Product[] {
+  const terms = normalize(query).split(/\s+/).filter(Boolean);
+  return products.filter(p => terms.every(t => normalize([p.shortName, p.name, p.specification, p.category, ...p.aliases].join(' ')).includes(t)));
+}
 export function quoteText(lines: QuoteLine[], products: Product[]) {
   const s = summarize(lines);
-  return ['QuickPrice 报价清单', ...lines.map((l, i) => `${i + 1}. ${products.find(p => p.id === l.productId)?.name ?? l.source}\n   ${l.quantity || '待补充'} 件 × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${lineTotal(l) === null ? '待完善（未计入）' : '¥' + money(lineTotal(l)!)}`), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, `${s.count} 项 · 已计价 ${s.quantity} 件${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
+  return ['QuickPrice 报价清单', ...lines.map((l, i) => {
+    const p = products.find(p => p.id === l.productId);
+    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${lineTotal(l) === null ? '待完善（未计入）' : '¥' + money(lineTotal(l)!)}`;
+  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
 }
 export function quoteCsv(lines: QuoteLine[], products: Product[]) {
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   const s = summarize(lines);
-  const rows: (string | number)[][] = [['序号', '原始描述', '产品', '品类', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p?.name ?? '', p?.category ?? '', l.quantity, l.price, lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '已确认合计', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
+  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p?.shortName ?? '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, l.price, lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
   return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
 }
