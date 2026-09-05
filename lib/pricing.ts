@@ -61,8 +61,12 @@ export function productTerms(product: Product): string[] {
   const base = [product.shortName, product.name, ...product.aliases].filter(Boolean);
   return product.specification ? [...base, ...base.map(term => `${term} ${product.specification}`)] : base;
 }
+export function productDisplayName(p: Product): string { return p.shortName.trim() || p.name; }
+export function productSecondaryName(p: Product): string {
+  return p.shortName.trim() && normalize(p.shortName) !== normalize(p.name) ? p.name : '';
+}
 export function productLabel(p: Product): string {
-  return [p.shortName && normalize(p.shortName) !== normalize(p.name) ? p.shortName : '', p.name, p.specification].filter(Boolean).join(' · ');
+  return [p.shortName.trim() && normalize(p.shortName) !== normalize(p.name) ? p.shortName.trim() : '', p.name, p.specification].filter(Boolean).join(' · ');
 }
 export function searchProducts(products: Product[], query: string): Product[] {
   const terms = normalize(query).split(/\s+/).filter(Boolean);
@@ -78,6 +82,6 @@ export function quoteText(lines: QuoteLine[], products: Product[]) {
 export function quoteCsv(lines: QuoteLine[], products: Product[]) {
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   const s = summarize(lines);
-  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p?.shortName ?? '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, l.price, lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
+  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p ? productDisplayName(p) : '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, l.price, lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
   return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
 }

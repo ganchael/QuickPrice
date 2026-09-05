@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { utils, write } from 'xlsx';
 import { importWorkbook } from '../lib/import-workbook.ts';
 import { catalogKey, mergeCatalog, validateCatalog } from '../lib/catalog.ts';
-import { parseQuote, searchProducts, quoteText, quoteCsv, summarize } from '../lib/pricing.ts';
+import { parseQuote, searchProducts, quoteText, quoteCsv, summarize, productDisplayName, productSecondaryName, productLabel } from '../lib/pricing.ts';
 
 function workbook(rows, merges = []) {
   const sheet = utils.aoa_to_sheet(rows); sheet['!merges'] = merges.map(utils.decode_range);
@@ -71,4 +71,18 @@ test('user reference: all 192 SKUs, 92 names, 39 blank abbreviations and exact b
   assert.equal(r.products.find(p => p.name === 'KPV' && p.specification === '10mg*10vials').shortName, 'KP');
   assert.equal(r.products.find(p => p.name === 'Adipotide/FTTP').shortName, '');
   assert.ok(r.products.every(p => p.unit === '盒'));
+});
+
+test('missing abbreviations use full names in product labels and quote exports', () => {
+  const r = importWorkbook(workbook([['简称', '名称', '规格', '价格'], ['', 'Adipotide/FTTP', '2mg', 130]]));
+  const p = r.products[0];
+  assert.equal(productDisplayName(p), 'Adipotide/FTTP');
+  assert.equal(productSecondaryName(p), '');
+  assert.equal(productDisplayName({ ...p, shortName: '  ' }), 'Adipotide/FTTP');
+  assert.equal(productLabel(p), 'Adipotide/FTTP · 2mg');
+  assert.equal(productSecondaryName({ ...p, shortName: 'AD' }), 'Adipotide/FTTP');
+  const lines = parseQuote('Adipotide/FTTP 2mg × 5盒', r.products);
+  assert.equal(summarize(lines).cents, 65000);
+  assert.match(quoteCsv(lines, r.products), /"Adipotide\/FTTP","Adipotide\/FTTP","2mg"/);
+  assert.equal(p.shortName, '');
 });
