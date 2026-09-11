@@ -37,10 +37,7 @@ export function TypingTitle({ text }: { text: string }) {
         if (count < title.length) later(type, 130);
         else {
           setPhase('holding');
-          later(() => {
-            setPhase('blinking');
-            later(() => { setDisplay(''); setPhase('gap'); later(begin, 450); }, 1200);
-          }, 2200);
+          later(begin, 3000);
         }
       };
       later(type, 200);
