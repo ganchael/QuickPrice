@@ -9,6 +9,7 @@ import { Toaster, toast } from '@/components/ui/toast';
 import { CatalogManager } from '@/components/catalog-manager';
 import { useMobileViewport } from '@/hooks/use-mobile-viewport';
 import { ProductPicker } from '@/components/product-picker';
+import { TypingTitle } from '@/components/typing-title';
 import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, productLabel, productDisplayName, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
 
 type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
@@ -111,7 +112,7 @@ export default function QuickPriceApp({ user }: Props) {
       <div className="nav-actions"><button className="account-link" onClick={() => void signOut()} disabled={loggingOut || saving}>{loggingOut ? '正在退出…' : '退出登录'}</button><button className="nav-button" aria-label="商品价格库" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>商品库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
     </div></header>
     <main id="main" className={`workspace ${lines.length ? 'has-lines' : ''}`}>
-      <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />你的轻量计价工作台</div><h1><span className="desktop-page-title">每一笔，<span>算得清楚。</span></span><span className="mobile-page-title">快速计价</span></h1><p>输入清单，即刻匹配。让报价简单一点。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
+      <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />你的轻量计价工作台</div><h1><span className="desktop-page-title"><TypingTitle text="每一笔，算得清楚。" /></span><span className="mobile-page-title"><TypingTitle text="快速计价" /></span></h1><p>输入清单，即刻匹配。让报价简单一点。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
       <div className="account-banner"><span>云端商品库 · {user.displayName}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button></div>
       <div className="workspace-grid">
         <aside className="input-column">
