@@ -74,7 +74,7 @@ export function searchProducts(products: Product[], query: string): Product[] {
 }
 export function quoteText(lines: QuoteLine[], products: Product[]) {
   const s = summarize(lines);
-  return ['QuickPrice 报价清单', ...lines.map((l, i) => {
+  return ['多肽报价清单', ...lines.map((l, i) => {
     const p = products.find(p => p.id === l.productId);
     return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${lineTotal(l) === null ? '待完善（未计入）' : '¥' + money(lineTotal(l)!)}`;
   }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
