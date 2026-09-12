@@ -141,6 +141,16 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: -.35px; }
 .line-error { grid-column: 1/-1; color: #a3640e; font-size: 12px; padding-left: 27px; margin-top: 6px; }
 .has-issue { background: #fffcf6; }
 .total-panel { margin-top: 20px; border: 1px solid rgba(21,108,223,.12); border-radius: 17px; background: #eaf2fe; padding: 23px 25px 0; }
+.exchange-panel { margin-top: 16px; padding: 18px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
+.exchange-panel label { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.exchange-panel label span { font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+.exchange-input { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 14px; }
+.exchange-input input { flex: 1; width: 0; min-width: 0; min-height: 44px; padding: 9px 12px; border: 1px solid var(--input); border-radius: 9px; background: var(--background); font-size: 16px; scroll-margin: 100px 0 210px; }
+.exchange-input input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+.exchange-panel p { margin-top: 10px; font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
+.exchange-panel p.exchange-error { color: #b42318; }
+.exchange-total { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; }
+.exchange-total output { color: var(--primary); font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
 .total-top { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-bottom: 20px; }
 .total-top h2 { color: #284364; font-size: 16px; }
 .total-top p { color: #577293; font-size: 12px; margin-top: 6px; }

@@ -1,3 +1,4 @@
+import { rateUnits, usdtAmount } from './quote-export.ts';
 export type Product = { id: string; shortName: string; name: string; specification: string; unit: string; category: string; price: string; aliases: string[] };
 export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none' };
 export const productsSeed: Product[] = [
@@ -72,12 +73,14 @@ export function searchProducts(products: Product[], query: string): Product[] {
   const terms = normalize(query).split(/\s+/).filter(Boolean);
   return products.filter(p => terms.every(t => normalize([p.shortName, p.name, p.specification, p.category, ...p.aliases].join(' ')).includes(t)));
 }
-export function quoteText(lines: QuoteLine[], products: Product[]) {
+export function quoteText(lines: QuoteLine[], products: Product[], rate?: string) {
+  if (rate !== undefined && rateUnits(rate) === null) throw new Error('请填写有效汇率：1 USDT 对应的人民币金额，最多 6 位小数。');
   const s = summarize(lines);
   return ['多肽报价清单', ...lines.map((l, i) => {
     const p = products.find(p => p.id === l.productId);
-    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${lineTotal(l) === null ? '待完善（未计入）' : '¥' + money(lineTotal(l)!)}`;
-  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
+    const total = lineTotal(l);
+    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${total === null ? '待完善（未计入）' : '¥' + money(total)}${rate !== undefined && total !== null ? `\n   折合：${usdtAmount(total, rate)} USDT` : ''}`;
+  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, ...(rate !== undefined ? [`折合${s.pending ? '已确认' : ''}合计：${usdtAmount(s.cents, rate) ?? '金额超限'} USDT`, `汇率：1 USDT = ¥${rate.trim()}（手动设置）`, 'USDT 合计按人民币总额换算，保留两位小数。'] : []), `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
 }
 export function quoteCsv(lines: QuoteLine[], products: Product[]) {
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
