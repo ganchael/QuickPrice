@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rateUnits, usdtAmount, quoteFilename } from '../lib/quote-export.ts';
 import { quoteText, quoteCsv, productsSeed, parseQuote } from '../lib/pricing.ts';
-import { parseBinanceRate } from '../lib/live-rate.ts';
 import { read, utils } from 'xlsx';
 
 test('export filename uses local calendar date and time through minutes', () => {

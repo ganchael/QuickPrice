@@ -1,21 +1,17 @@
 import { rateUnits } from './quote-export.ts';
 
-export const BINANCE_RATE_PAGE = 'https://www.binance.com/zh-CN/price/tether/CNY';
-type Quote = { timestamp?: string; quote?: { USD?: { price?: number } } };
+export const OKX_RATE_PAGE = 'https://www.okx.com/zh-hans/convert/usdt-to-cny';
 
-export function parseBinanceRate(currencies: unknown, history: unknown, now = Date.now()) {
-  const fx = currencies as { code?: string; success?: boolean; data?: { pair?: string; rate?: number }[] };
-  const prices = history as { code?: string; success?: boolean; data?: { body?: { data?: { id?: number; symbol?: string; quotes?: Quote[] }; status?: { error_code?: number } } } };
-  const asset = prices?.data?.body?.data;
-  if (fx?.code !== '000000' || fx.success !== true || !Array.isArray(fx.data) || prices?.code !== '000000' || prices.success !== true || prices.data?.body?.status?.error_code !== 0 || asset?.id !== 825 || asset.symbol !== 'USDT' || !Array.isArray(asset.quotes)) throw new Error('币安行情格式无效');
-  const cny = fx.data.find(item => item.pair === 'CNY_USD')?.rate;
-  const latest = [...asset.quotes].sort((a, b) => Date.parse(b.timestamp ?? '') - Date.parse(a.timestamp ?? ''))[0];
-  const timestamp = Date.parse(latest?.timestamp ?? '');
-  const usd = latest?.quote?.USD?.price;
-  if (typeof cny !== 'number' || !Number.isFinite(cny) || cny <= 0 || typeof usd !== 'number' || !Number.isFinite(usd) || usd <= 0) throw new Error('币安报价无效');
-  if (!Number.isFinite(timestamp) || now - timestamp > 15 * 60000 || timestamp > now + 60000) throw new Error('币安行情已过期');
-  // Binance price converter: coin.quote.USD.price * currencyData.rate.
-  const rate = (usd * cny).toFixed(6);
-  if (rateUnits(rate) === null) throw new Error('币安汇率无效');
-  return { rate, updatedAt: new Date(timestamp).toISOString(), fetchedAt: new Date(now).toISOString(), source: '币安 · 5分钟行情', kind: 'market', sourceUrl: BINANCE_RATE_PAGE };
+export function parseOkxRate(html: string, now = Date.now()) {
+  const script = html.match(/<script\b[^>]*\bid=["']appState["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!script) throw new Error('欧易行情页面缺少数据');
+  const props = JSON.parse(script[1])?.appContext?.serverSideProps;
+  const pair = props?.detail?.currencyPairInfo;
+  const value = props?.detail?.convertInfo?.rate;
+  if (props?.fetchParams?.fromCurrency !== 'USDT' || props?.fetchParams?.toCurrency !== 'CNY' || pair?.crypto?.currency !== 'USDT' || pair?.fiat?.currency !== 'CNY' || pair?.pair !== 'usdt-to-cny') throw new Error('欧易行情币种不匹配');
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) throw new Error('欧易报价无效');
+  const rate = value.toFixed(6);
+  if (rateUnits(rate) === null) throw new Error('欧易汇率无效');
+  // The page supplies no market timestamp. Label this as retrieval time, never quote time.
+  return { rate, updatedAt: new Date(now).toISOString(), fetchedAt: new Date(now).toISOString(), source: '欧易 OKX · 获取于', kind: 'reference', sourceUrl: OKX_RATE_PAGE };
 }

@@ -33,7 +33,7 @@ export default function QuickPriceApp({ user }: Props) {
   const [rateLoading, setRateLoading] = useState(true);
   const [rateMessage, setRateMessage] = useState('正在获取最新汇率…');
   const [rateSource, setRateSource] = useState('手动设置');
-  const [rateSourceUrl, setRateSourceUrl] = useState('https://www.binance.com/zh-CN/price/tether/CNY');
+  const [rateSourceUrl, setRateSourceUrl] = useState('https://www.okx.com/zh-hans/convert/usdt-to-cny');
   const rateRequest = useRef(0);
   const refreshRate = useCallback(async () => {
     const request = ++rateRequest.current;
@@ -48,7 +48,7 @@ export default function QuickPriceApp({ user }: Props) {
       setRateSourceUrl(data.sourceUrl);
       setRateSource(source); setRateMessage(source);
     } catch {
-      if (request === rateRequest.current) setRateMessage('币安汇率获取失败，请手动填写或重试；已有汇率未更新。');
+      if (request === rateRequest.current) setRateMessage('欧易汇率获取失败，请手动填写或重试；已有汇率未更新。');
     } finally { if (request === rateRequest.current) setRateLoading(false); }
   }, []);
   useEffect(() => { void refreshRate(); return () => { rateRequest.current++; }; }, [refreshRate]);
