@@ -33,7 +33,7 @@ export default function QuickPriceApp({ user }: Props) {
   const [rateLoading, setRateLoading] = useState(true);
   const [rateMessage, setRateMessage] = useState('正在获取最新汇率…');
   const [rateSource, setRateSource] = useState('手动设置');
-  const [rateSourceUrl, setRateSourceUrl] = useState('https://www.coingecko.com/en/coins/tether');
+  const [rateSourceUrl, setRateSourceUrl] = useState('https://www.binance.com/zh-CN/price/tether/CNY');
   const rateRequest = useRef(0);
   const refreshRate = useCallback(async () => {
     const request = ++rateRequest.current;
@@ -44,11 +44,11 @@ export default function QuickPriceApp({ user }: Props) {
       if (request !== rateRequest.current) return;
       if (!response.ok || typeof data.rate !== 'string' || rateUnits(data.rate) === null || !Number.isFinite(Date.parse(data.updatedAt))) throw new Error('获取失败');
       setExchangeRate(data.rate); setRateError(false);
-      const source = data.kind === 'daily' ? `${data.source} 每日参考 · ${data.updatedAt.slice(0, 10)}（行情暂不可用）` : `${data.source} · ${new Date(data.updatedAt).toLocaleString('zh-CN', { hour12: false })}`;
+      const source = `${data.source} · ${new Date(data.updatedAt).toLocaleString('zh-CN', { hour12: false })}`;
       setRateSourceUrl(data.sourceUrl);
       setRateSource(source); setRateMessage(source);
     } catch {
-      if (request === rateRequest.current) setRateMessage('最新汇率获取失败，请手动填写或重试；已有汇率未更新。');
+      if (request === rateRequest.current) setRateMessage('币安汇率获取失败，请手动填写或重试；已有汇率未更新。');
     } finally { if (request === rateRequest.current) setRateLoading(false); }
   }, []);
   useEffect(() => { void refreshRate(); return () => { rateRequest.current++; }; }, [refreshRate]);

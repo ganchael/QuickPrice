@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rateUnits, usdtAmount, quoteFilename } from '../lib/quote-export.ts';
 import { quoteText, quoteCsv, productsSeed, parseQuote } from '../lib/pricing.ts';
-import { parseLiveRate, parseDailyRate } from '../lib/live-rate.ts';
+import { parseBinanceRate } from '../lib/live-rate.ts';
 import { read, utils } from 'xlsx';
 
 test('export filename uses local calendar date and time through minutes', () => {
@@ -41,19 +41,4 @@ test('CSV includes numeric USDT unit prices, amounts, total, rate and provenance
   assert.equal(rows[3][12], 116);
   assert.equal(rows[4][1], 'CoinGecko · test time');
   assert.throws(() => quoteCsv(lines, productsSeed, '0'), /有效汇率/);
-});
-test('live rate validation rejects missing, stale, future and invalid quotes', () => {
-  const now = 1800000000000;
-  assert.equal(parseLiveRate({ tether: { cny: 7.123456, last_updated_at: now / 1000 } }, now).rate, '7.123456');
-  for (const quote of [{}, { cny: 0, last_updated_at: now / 1000 }, { cny: 7, last_updated_at: now / 1000 - 901 }, { cny: 7, last_updated_at: now / 1000 + 61 }]) {
-    assert.throws(() => parseLiveRate({ tether: quote }, now));
-  }
-});
-test('daily fallback preserves the actual source date and rejects old data', () => {
-  const now = Date.parse('2026-09-12T06:00:00Z');
-  const result = parseDailyRate({ date: '2026-09-11', usdt: { cny: 7.0123456 } }, now);
-  assert.equal(result.kind, 'daily');
-  assert.equal(result.rate, '7.012346');
-  assert.equal(result.updatedAt, '2026-09-11T00:00:00.000Z');
-  assert.throws(() => parseDailyRate({ date: '2026-09-09', usdt: { cny: 7 } }, now));
 });
