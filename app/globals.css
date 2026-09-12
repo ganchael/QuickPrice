@@ -141,16 +141,6 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: -.35px; }
 .line-error { grid-column: 1/-1; color: #a3640e; font-size: 12px; padding-left: 27px; margin-top: 6px; }
 .has-issue { background: #fffcf6; }
 .total-panel { margin-top: 20px; border: 1px solid rgba(21,108,223,.12); border-radius: 17px; background: #eaf2fe; padding: 23px 25px 0; }
-.exchange-panel { margin-top: 16px; padding: 18px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
-.exchange-panel label { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
-.exchange-panel label span { font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
-.exchange-input { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 14px; }
-.exchange-input input { flex: 1; width: 0; min-width: 0; min-height: 44px; padding: 9px 12px; border: 1px solid var(--input); border-radius: 9px; background: var(--background); font-size: 16px; scroll-margin: 100px 0 210px; }
-.exchange-input input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
-.exchange-panel p { margin-top: 10px; font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
-.exchange-panel p.exchange-error { color: #b42318; }
-.exchange-total { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 14px; }
-.exchange-total output { color: var(--primary); font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
 .total-top { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-bottom: 20px; }
 .total-top h2 { color: #284364; font-size: 16px; }
 .total-top p { color: #577293; font-size: 12px; margin-top: 6px; }
@@ -159,7 +149,15 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: -.35px; }
 .total-amount>span { font-size: 24px; margin-right: 6px; font-weight: 500; }
 .total-bottom { border-top: 1px solid rgba(21,108,223,.10); padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #597698; }
 .total-bottom>span:first-child { display: flex; align-items: center; gap: 5px; }
-.action-bar { display: grid; grid-template-columns: 1fr 1.7fr; gap: 12px; margin-top: 18px; }
+.action-bar { display: grid; grid-template-columns: 1fr minmax(180px, 1fr) 1fr; gap: 12px; margin-top: 18px; align-items: center; }
+.inline-rate { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.inline-rate label { font-size: 12px; color: var(--muted-foreground); }
+.inline-rate>div { display: flex; gap: 6px; align-items: center; }
+.inline-rate input { min-width: 0; width: 0; flex: 1; height: 44px; padding: 8px 10px; font-size: 16px; background: var(--card); border: 1px solid var(--input); border-radius: 9px; }
+.inline-rate input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+.action-bar .inline-rate button { min-width: 44px; min-height: 44px; height: 44px; padding: 4px; color: var(--primary); font-size: 13px; }
+.rate-status { margin-top: 10px; font-size: 12px; line-height: 1.6; color: var(--muted-foreground); }
+.rate-status a { margin-left: 8px; text-decoration: underline; }
 .action-bar button { height: 48px; }
 .export-format { font-size: 12px; font-weight: 400; opacity: .8; margin-left: 4px; }
 .session-note { font-size: 12px; color: var(--muted-foreground); text-align: center; margin-top: 14px; line-height: 1.8; }
@@ -395,7 +393,7 @@ button.account-link { background: none; border: 0; cursor: pointer; font: inheri
   button.account-link { min-height:44px; padding:8px; font-size:12px; }
   .help-button { width:44px; height:44px; }
   .workspace { padding-top:16px; padding-bottom:24px; }
-  .workspace.has-lines { padding-bottom:calc(160px + env(safe-area-inset-bottom)); }
+  .workspace.has-lines { padding-bottom:calc(240px + env(safe-area-inset-bottom)); }
   .page-heading { align-items:center; margin-bottom:12px; }
   .workspace-label,.page-heading>div>p,.desktop-page-title { display:none; }
   .page-heading h1 { font-size:24px; letter-spacing:-.6px; }
@@ -457,7 +455,11 @@ button.account-link { background: none; border: 0; cursor: pointer; font: inheri
   .details-heading { padding:16px; }
   .details-footer { padding:8px 16px; }
   .total-panel { margin-top:14px; }
-  .action-bar { display:grid; grid-template-columns:1fr 1.35fr; padding:0 16px max(12px,env(safe-area-inset-bottom)); gap:0 10px; }
+  .action-bar { display:grid; grid-template-columns:1fr 1fr; padding:0 16px max(12px,env(safe-area-inset-bottom)); gap:8px 10px; }
+  .inline-rate { grid-column:1/-1; grid-row:2; flex-direction:row; align-items:center; gap:10px; }
+  .inline-rate>div { flex:1; min-width:0; }
+  .inline-rate label { font-size:13px; white-space:nowrap; }
+  .action-bar .copy-button,.action-bar .export-button { grid-row:3; }
   .action-bar[data-empty=true] { display:none; }
   .mobile-quote-summary { display:flex; grid-column:1/-1; align-items:center; justify-content:space-between; gap:8px; min-height:50px; padding:8px 0; text-align:left; }
   .mobile-quote-summary>span { flex:1; font-size:13px; color:var(--muted-foreground); }
@@ -466,7 +468,9 @@ button.account-link { background: none; border: 0; cursor: pointer; font: inheri
   .action-bar .mobile-quote-summary { height:auto; padding:8px 0; }
   .action-bar .copy-button,.action-bar .export-button { height:48px; font-size:15px; }
   html[data-keyboard-open=true] .action-bar { display:none; }
-  [data-slot=toast-viewport] { bottom:calc(128px + env(safe-area-inset-bottom)); }
+  html[data-keyboard-open=true] .action-bar:has(#usdt-rate:focus) { display:grid; bottom:max(0px,calc(100% - var(--visible-height) - var(--visible-top))); }
+  html[data-keyboard-open=true] .action-bar:has(#usdt-rate:focus) .mobile-quote-summary { display:none; }
+  [data-slot=toast-viewport] { bottom:calc(208px + env(safe-area-inset-bottom)); }
   .catalog-manager[data-slot=dialog-content],.mobile-product-dialog[data-slot=dialog-content] { top:var(--visible-top,0px); left:0; --tw-translate-x:0px; --tw-translate-y:0px; translate:none!important; transform:none; width:100%; max-width:none; height:var(--visible-height,100dvh); max-height:var(--visible-height,100dvh); border-radius:0; padding:0; gap:0; border:0; animation:none; }
   .catalog-manager>.dialog-heading { padding:calc(12px + env(safe-area-inset-top)) 16px 14px; }
   .catalog-manager .dialog-heading [data-slot=dialog-title] { margin:8px 0; }
