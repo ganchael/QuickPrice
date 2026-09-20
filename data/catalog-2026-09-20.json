@@ -1,0 +1,1987 @@
+{
+  "ownerId": "account:888",
+  "products": [
+    {
+      "id": "import-a92b7031-cfda-4efc-8153-e336411c3976",
+      "shortName": "AX",
+      "name": "Adamax",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6052d5f9-e14d-4150-9d23-df563eb4dc5d",
+      "shortName": "AX",
+      "name": "Adamax",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "330.00",
+      "aliases": []
+    },
+    {
+      "id": "import-bdd7c22e-9e62-41de-9cb1-defab65d1c09",
+      "shortName": "",
+      "name": "Adipotide/FTTP",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-dbec11f5-efa7-42f2-985c-b2987589c903",
+      "shortName": "",
+      "name": "Adipotide/FTTP",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "300.00",
+      "aliases": []
+    },
+    {
+      "id": "import-4a4b0576-329c-49ea-9473-58a718019dde",
+      "shortName": "",
+      "name": "Adipotide/FTTP",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "550.00",
+      "aliases": []
+    },
+    {
+      "id": "import-61327a10-af81-48e7-8318-489f9d6621d0",
+      "shortName": "",
+      "name": "Aicar",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-10db07c3-0e3d-43d4-a09b-7085ba93eab9",
+      "shortName": "",
+      "name": "Aicar",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "290.00",
+      "aliases": []
+    },
+    {
+      "id": "import-57b84236-8846-42e4-9c34-0ba4b5b9c1b9",
+      "shortName": "ARA",
+      "name": "ARA290 (Cibinetide)",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "160.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e827ba27-1b0b-4f8b-b13f-497fdc1a4cb7",
+      "shortName": "ARA",
+      "name": "ARA290 (Cibinetide)",
+      "specification": "16mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "245.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6f6cbaf7-89cb-429c-83e1-2e9a5e3ee0bd",
+      "shortName": "AOD/AD",
+      "name": "AOD9604",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-08d02a7f-a68b-424b-a495-f80295043535",
+      "shortName": "AOD/AD",
+      "name": "AOD9604",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "310.00",
+      "aliases": []
+    },
+    {
+      "id": "import-731234d1-f1f7-4c97-9335-852dddbd13f8",
+      "shortName": "AOD/AD",
+      "name": "AOD9604",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "430.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f7cd8cad-d73f-4860-8220-689421f401bc",
+      "shortName": "ACI",
+      "name": "ACE 031",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "90.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b8c7d634-d08b-4c54-bd66-2465eacda504",
+      "shortName": "",
+      "name": "ACTH 1-39",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "160.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b3a711b3-db27-4dd1-aecb-2a365787b0b8",
+      "shortName": "AU",
+      "name": "AHK-CU",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "90.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d31093cf-6211-49f1-9f3c-2f5ca26cbafb",
+      "shortName": "AU",
+      "name": "AHK-CU",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6381cce6-1bdd-4102-b221-41973770c19d",
+      "shortName": "",
+      "name": "B7-33",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "680.00",
+      "aliases": []
+    },
+    {
+      "id": "import-7e59938b-4f88-409e-9759-65abeb4c5534",
+      "shortName": "",
+      "name": "B7-33",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "230.00",
+      "aliases": []
+    },
+    {
+      "id": "import-0a0ab509-072b-46ec-9cf5-9b8a79284276",
+      "shortName": "BC",
+      "name": "BPC 157",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "50.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e005261b-1f46-4eb8-a094-fb582b312e8c",
+      "shortName": "BC",
+      "name": "BPC 157",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d8176738-aee0-4bb0-ad1f-2de04214a08e",
+      "shortName": "BC",
+      "name": "BPC 157",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-60e7c10e-4968-40d0-97ed-85434180b846",
+      "shortName": "BB10",
+      "name": "BPC 5mg+TB5mg",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6a2e67dc-3323-4d58-bc81-964f226cb57f",
+      "shortName": "BB20",
+      "name": "BPC 10mg+TB10mg",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "434.00",
+      "aliases": []
+    },
+    {
+      "id": "import-caafad43-df6a-4b86-a699-aefc4ab7d103",
+      "shortName": "BB30",
+      "name": "BPC 15mg+TB15mg",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "625.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d5c6a54a-405f-448f-aa0d-b322f3482581",
+      "shortName": "CGL/Cag",
+      "name": "Cagrilintide",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "110.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f66b63b5-81b1-4143-944d-cc10b07a250a",
+      "shortName": "CGL/Cag",
+      "name": "Cagrilintide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "290.00",
+      "aliases": []
+    },
+    {
+      "id": "import-611f38d2-2b9c-4e08-b83d-aa3c961354b5",
+      "shortName": "CGL/Cag",
+      "name": "Cagrilintide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "550.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2f028403-2b88-434f-b44a-a2e15171a506",
+      "shortName": "CS5",
+      "name": "Cagrisema (2.5mg+2.5mg)",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "220.00",
+      "aliases": []
+    },
+    {
+      "id": "import-9f696b64-0d8f-46f5-b95f-1bc799e77a6c",
+      "shortName": "CS10",
+      "name": "cagrilintide5mg+semaglutide5mg",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "370.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6a695fcd-a959-49ba-9187-dec97cb464e4",
+      "shortName": "CS20",
+      "name": "Cagriema(10ng- 10mg）",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "650.00",
+      "aliases": []
+    },
+    {
+      "id": "import-31c23056-2aff-471b-afef-6623ed71b73a",
+      "shortName": "CD",
+      "name": "CJC1295 with DAC",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "203.00",
+      "aliases": []
+    },
+    {
+      "id": "import-bdce4c7a-167c-4000-8181-ca4b1851af23",
+      "shortName": "CD",
+      "name": "CJC1295 with DAC",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "412.00",
+      "aliases": []
+    },
+    {
+      "id": "import-95bb88b9-176c-4a1b-a5af-edc2f6d202ae",
+      "shortName": "CND",
+      "name": "CJC 1295(without DAC)",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6a51f87b-732e-439b-9457-ba4399313576",
+      "shortName": "CND",
+      "name": "CJC 1295(without DAC)",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "140.00",
+      "aliases": []
+    },
+    {
+      "id": "import-fd12a13b-9e8f-4663-9071-20120e1c645f",
+      "shortName": "CND",
+      "name": "CJC 1295(without DAC)",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "270.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6c6259ed-c5d0-409b-9094-0c4744a25134",
+      "shortName": "CP",
+      "name": "CJC 1295(without DAC)5mg+IPA 5mg",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "190.00",
+      "aliases": []
+    },
+    {
+      "id": "import-a9e68a03-9eb4-4ddd-9e5e-bc401aff07cc",
+      "shortName": "",
+      "name": "Cardiogen",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "180.00",
+      "aliases": []
+    },
+    {
+      "id": "import-8a1db989-c454-40ae-b3e9-3d4a9897dfcf",
+      "shortName": "",
+      "name": "Cortagen",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "180.00",
+      "aliases": []
+    },
+    {
+      "id": "import-cf739b40-3579-4e06-9833-0a7dc5a65404",
+      "shortName": "",
+      "name": "Crystagen",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "115.00",
+      "aliases": []
+    },
+    {
+      "id": "import-db9f311e-2ad5-4580-9159-85f10d260a6a",
+      "shortName": "",
+      "name": "Cartalax",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "265.00",
+      "aliases": []
+    },
+    {
+      "id": "import-fd9a3edf-cd76-4933-9a37-589aafb429d6",
+      "shortName": "dp",
+      "name": "Dermorphin",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-cc122ba1-d174-4318-9003-925beab2bc23",
+      "shortName": "dp",
+      "name": "Dermorphin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "280.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ec9e0ef1-c95c-4076-9947-face4115909a",
+      "shortName": "DS",
+      "name": "DSIP",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-a2b3252c-a480-4ef8-a5a9-24d80db1e6ec",
+      "shortName": "DS",
+      "name": "DSIP",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2a2c8ced-b0ed-45b4-9187-2cdacefe3cf9",
+      "shortName": "DS",
+      "name": "DSIP",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-934ceefa-adda-44c1-af86-6fe2cc3aaf26",
+      "shortName": "DS",
+      "name": "DSIP",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "270.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6f695df3-65f7-4c75-b9ae-5c5a4e735d67",
+      "shortName": "",
+      "name": "Dulaglutide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "350.00",
+      "aliases": []
+    },
+    {
+      "id": "import-87031d31-f495-4afc-909a-926162ac3780",
+      "shortName": "",
+      "name": "Dulaglutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "680.00",
+      "aliases": []
+    },
+    {
+      "id": "import-5e2e264e-5e75-41b5-ad7d-30456a0cfd43",
+      "shortName": "",
+      "name": "Dihexa",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-0efd1a6c-bed5-49ac-81dc-06e90928e6ed",
+      "shortName": "",
+      "name": "Dihexa",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-165e0cf9-b7fd-4cbd-8742-d5773c13a1c6",
+      "shortName": "DP",
+      "name": "Demorphin",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f0486746-f7f0-4b9a-8480-feeca8b71360",
+      "shortName": "DP",
+      "name": "Demorphin",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-beff6905-8372-4e64-a0ca-afb9390374e9",
+      "shortName": "DP",
+      "name": "Demorphin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "280.00",
+      "aliases": []
+    },
+    {
+      "id": "import-133465be-9e3f-4a61-8291-4aacc96b6d29",
+      "shortName": "ET",
+      "name": "Epithalon",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-66790a04-377b-4fa2-8308-51dc0bc1c308",
+      "shortName": "ET",
+      "name": "Epithalon",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "340.00",
+      "aliases": []
+    },
+    {
+      "id": "import-06d822d2-c6cc-480f-bd83-d9c2420029e9",
+      "shortName": "",
+      "name": "EPO",
+      "specification": "3000iu *10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "160.00",
+      "aliases": []
+    },
+    {
+      "id": "import-4dc1eaad-d387-4698-b749-10b0babac3ee",
+      "shortName": "",
+      "name": "FOX04",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "230.00",
+      "aliases": []
+    },
+    {
+      "id": "import-79b4fb11-3dc8-4a2e-85d7-93a8805d6399",
+      "shortName": "",
+      "name": "FOX04",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "880.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ba955721-f376-46de-8036-3991c560c405",
+      "shortName": "",
+      "name": "Frag 17-23",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-48d5c595-5277-453b-8080-0998410a0360",
+      "shortName": "CU",
+      "name": "GHK-Cu",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "75.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3ca0fbb9-09ca-4dc1-a6a8-ba0e4280576a",
+      "shortName": "CU",
+      "name": "GHK-Cu",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "105.00",
+      "aliases": []
+    },
+    {
+      "id": "import-cd0d6b74-597d-4888-9833-7a53c76ac6c7",
+      "shortName": "GTT",
+      "name": "Glutathione",
+      "specification": "1500mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-97f9a8e9-dcf8-44a0-b2d0-8dece4c00589",
+      "shortName": "GTT",
+      "name": "Glutathione",
+      "specification": "600mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2e5fe533-3124-41ba-9ba4-2dad647e53d2",
+      "shortName": "GR2",
+      "name": "GHRP-2",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-32944707-220a-4f56-aede-83acdf768c6a",
+      "shortName": "GR2",
+      "name": "GHRP-2",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f6833f82-0f4b-4529-b9a1-21b0f27c8951",
+      "shortName": "GR2",
+      "name": "GHRP-2",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "145.00",
+      "aliases": []
+    },
+    {
+      "id": "import-985a0898-cc7d-4271-af7d-a203df1a8d10",
+      "shortName": "GR6",
+      "name": "GHRP-6",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-50bdf07f-7ccc-44d5-8a6b-54057c36ac68",
+      "shortName": "GR6",
+      "name": "GHRP-6",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "110.00",
+      "aliases": []
+    },
+    {
+      "id": "import-842fa3d4-e2c1-437c-ae5f-c91248584a90",
+      "shortName": "GND2",
+      "name": "Gonadorelin Acetate",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "60.00",
+      "aliases": []
+    },
+    {
+      "id": "import-acb24c36-36df-46b0-8440-01e6acc7e769",
+      "shortName": "GND5",
+      "name": "Gonadorelin Acetate",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ce34964d-aee6-49ae-8a34-69ea7310b63f",
+      "shortName": "G5K",
+      "name": "HCG",
+      "specification": "5000iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "280.00",
+      "aliases": []
+    },
+    {
+      "id": "import-19638e46-2e5e-43f9-ad3c-df9ad7462a2b",
+      "shortName": "G10K",
+      "name": "HCG",
+      "specification": "10000iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "495.00",
+      "aliases": []
+    },
+    {
+      "id": "import-bc269855-6a93-4cef-8802-6158ef7d14a0",
+      "shortName": "G75",
+      "name": "HMG",
+      "specification": "75iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-a3dd77fc-39a4-4432-b4c2-5708f7cf9431",
+      "shortName": "IG01",
+      "name": "IGF-1 LR3",
+      "specification": "100mcg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "70.00",
+      "aliases": []
+    },
+    {
+      "id": "import-eb6c8b3a-7ec6-4d88-aa1f-649782ad826d",
+      "shortName": "IG1",
+      "name": "IGF-1 LR3",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "500.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d4cd10cd-2b45-49b4-8218-1dbe29033923",
+      "shortName": "H10",
+      "name": "HGH",
+      "specification": "10iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e9ff6525-a410-44ef-93f0-dc9b0748eded",
+      "shortName": "H12",
+      "name": "HGH",
+      "specification": "12iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "175.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ee206287-10fa-4a44-8a29-be3e71aa2190",
+      "shortName": "H15",
+      "name": "HGH",
+      "specification": "15iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "255.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b840d7dc-0f3e-420b-9803-2847e0a8287b",
+      "shortName": "H24",
+      "name": "HGH",
+      "specification": "24iu*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "295.00",
+      "aliases": []
+    },
+    {
+      "id": "import-1f5f1fb9-7564-4f2d-a6af-73928f449bab",
+      "shortName": "H36",
+      "name": "HGH",
+      "specification": "36iu*11vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "450.00",
+      "aliases": []
+    },
+    {
+      "id": "import-1c5d291e-6e78-43a8-8cf3-367058aa57a7",
+      "shortName": "FR1",
+      "name": "HGH Fragment 176-191",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-26ff2c51-398e-40ad-9f63-ee6bc4c7491a",
+      "shortName": "FR2",
+      "name": "HGH Fragment 176-191",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "140.00",
+      "aliases": []
+    },
+    {
+      "id": "import-768fbbde-1800-4dbd-8f08-86a74aafa6c6",
+      "shortName": "FR5",
+      "name": "HGH Fragment 176-191",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "270.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e51df237-f4bf-4188-86b6-1037edd1db80",
+      "shortName": "FR10",
+      "name": "HGH Fragment 176-191",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "500.00",
+      "aliases": []
+    },
+    {
+      "id": "import-38d130e8-c6c5-4ee8-858c-a806c0c22afc",
+      "shortName": "FR12",
+      "name": "HGH Fragment 176-191",
+      "specification": "12mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "600.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e3366021-4f4a-4eba-a050-d988792571b2",
+      "shortName": "FR15",
+      "name": "HGH Fragment 176-191",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "680.00",
+      "aliases": []
+    },
+    {
+      "id": "import-8994d9eb-a593-4c5d-9dc3-cd1a1b774fd9",
+      "shortName": "FM2",
+      "name": "MGF",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-7d92d9ed-51b4-4d43-9f16-f2d76f33250e",
+      "shortName": "PMF2",
+      "name": "PEG MGF",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "240.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6ec10e4d-01ec-4878-afef-d6fb3a6995db",
+      "shortName": "",
+      "name": "FST 344",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "800.00",
+      "aliases": []
+    },
+    {
+      "id": "import-766b6ca3-1bf6-441a-82d1-e5ea92f6e940",
+      "shortName": "HX2",
+      "name": "Hexarelin Acetate",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "115.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e1ba2f70-78bd-4190-8acd-81f524e04ab2",
+      "shortName": "HX5",
+      "name": "Hexarelin Acetate",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "210.00",
+      "aliases": []
+    },
+    {
+      "id": "import-1f1aecb3-2b62-4fd5-82b7-3cd3108a26a1",
+      "shortName": "",
+      "name": "Humanin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "750.00",
+      "aliases": []
+    },
+    {
+      "id": "import-58643ad7-0de6-491d-ad8e-3bc9e4fd1734",
+      "shortName": "Ipa/IP",
+      "name": "Ipamorelin",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "50.00",
+      "aliases": []
+    },
+    {
+      "id": "import-5818d61a-0073-47eb-940c-2d40ddee48f0",
+      "shortName": "Ipa/IP",
+      "name": "Ipamorelin",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "85.00",
+      "aliases": []
+    },
+    {
+      "id": "import-6bf8ec6a-ade3-4859-a675-d68bd1b029ea",
+      "shortName": "Ipa/IP",
+      "name": "Ipamorelin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "135.00",
+      "aliases": []
+    },
+    {
+      "id": "import-9b688f97-a4a7-49ae-9be0-dd97c9ccb28b",
+      "shortName": "KS5",
+      "name": "Kisspetin-10",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "90.00",
+      "aliases": []
+    },
+    {
+      "id": "import-8eef1a93-d97e-4876-b3b6-866d2ddb2454",
+      "shortName": "KS10",
+      "name": "Kisspetin-10",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "165.00",
+      "aliases": []
+    },
+    {
+      "id": "import-24d4cd33-0f9e-477e-b1a3-ec277e802f6b",
+      "shortName": "",
+      "name": "Liraglutide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "190.00",
+      "aliases": []
+    },
+    {
+      "id": "import-404d0667-c830-4b19-8a73-0eccae75eee2",
+      "shortName": "",
+      "name": "Liraglutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "380.00",
+      "aliases": []
+    },
+    {
+      "id": "import-01a64e37-367e-4df5-8844-4a5b820c0072",
+      "shortName": "",
+      "name": "Liraglutide",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "1000.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d39752a1-693b-4fb4-b126-4ecd50ef58c6",
+      "shortName": "",
+      "name": "LL37",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "260.00",
+      "aliases": []
+    },
+    {
+      "id": "import-781ad172-0583-4b57-be58-3c2e52f8d0c1",
+      "shortName": "MS10",
+      "name": "MOTS-c (Human)",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "150.00",
+      "aliases": []
+    },
+    {
+      "id": "import-c4342a89-fcb9-48b2-ab67-8007b10912c2",
+      "shortName": "MS15",
+      "name": "MOTS-c (Human)",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-21274999-e434-45cd-a704-8b8828d25040",
+      "shortName": "MS20",
+      "name": "MOTS-c (Human)",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "275.00",
+      "aliases": []
+    },
+    {
+      "id": "import-9605ab1b-0f5d-4980-a46f-cd20775c649d",
+      "shortName": "MS30",
+      "name": "MOTS-c (Human)",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "375.00",
+      "aliases": []
+    },
+    {
+      "id": "import-79f70ace-6fca-4a8d-9eec-62be322c5bde",
+      "shortName": "MS40",
+      "name": "MOTS-c (Human)",
+      "specification": "40mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "500.00",
+      "aliases": []
+    },
+    {
+      "id": "import-55c05ec0-b431-4ec5-be7f-c44be01e729a",
+      "shortName": "MT1",
+      "name": "MelanotanI",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-0b03ba1c-e66a-495e-ac7b-7c3bb3d1ba9b",
+      "shortName": "ML10",
+      "name": "Melanotan Il",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-474685e5-49fd-46b7-bc3f-4b9cd3fb339d",
+      "shortName": "MX10",
+      "name": "Matrixyl",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-08a902f1-384c-4cdd-9e9b-bc46cbbb86b9",
+      "shortName": "MDT10",
+      "name": "Mazdutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "580.00",
+      "aliases": []
+    },
+    {
+      "id": "import-fdfed0d1-2e4b-4f00-a981-4252ffab099b",
+      "shortName": "NJ",
+      "name": "Nad+",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-76d9d428-e03d-4c23-baf8-f02e6e7ff7b7",
+      "shortName": "NJ",
+      "name": "Nad+",
+      "specification": "500mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-355eb1a5-3575-43a7-8246-3436b82e2bd6",
+      "shortName": "NJ",
+      "name": "Nad+",
+      "specification": "1000mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "170.00",
+      "aliases": []
+    },
+    {
+      "id": "import-344656fc-1e88-409c-8f65-78690945c9e4",
+      "shortName": "oxy/OT",
+      "name": "Oxytocin Acetate",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "50.00",
+      "aliases": []
+    },
+    {
+      "id": "import-7e41f56c-42cf-4eab-9aa0-adfdc3679251",
+      "shortName": "oxy/OT",
+      "name": "Oxytocin Acetate",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-46b15172-ee39-45c2-a3e2-86b2a21de08a",
+      "shortName": "oxy/OT",
+      "name": "Oxytocin Acetate",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "185.00",
+      "aliases": []
+    },
+    {
+      "id": "import-05b263d6-457f-4b21-862c-24212ef2a4b8",
+      "shortName": "P41",
+      "name": "PT141",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "170.00",
+      "aliases": []
+    },
+    {
+      "id": "import-697fab2f-60ea-4f0f-8d73-10ed34482d5a",
+      "shortName": "",
+      "name": "PE-22-28",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b305eed5-0230-4aa2-b9f2-87e8735b2eb1",
+      "shortName": "",
+      "name": "PE-22-28",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "240.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3e3cf646-2210-4d42-8bc2-bc90968fa4d8",
+      "shortName": "",
+      "name": "PNC-27",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-83c0f202-5b40-4e3a-b6e6-fd9e88edddd2",
+      "shortName": "",
+      "name": "P21 (P021)",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "780.00",
+      "aliases": []
+    },
+    {
+      "id": "import-68265af2-8693-4f35-8961-6ae5ecb70a53",
+      "shortName": "",
+      "name": "PTD-DBM",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "198.00",
+      "aliases": []
+    },
+    {
+      "id": "import-29fca65c-3063-4417-9369-d9be80484367",
+      "shortName": "Pin5",
+      "name": "Pinealon",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "80.00",
+      "aliases": []
+    },
+    {
+      "id": "import-03b4f676-03b8-413b-80a3-d0ba15f19196",
+      "shortName": "Pin10",
+      "name": "Pinealon",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "145.00",
+      "aliases": []
+    },
+    {
+      "id": "import-4f3c14f9-f08a-41d4-b5c9-caf091449d02",
+      "shortName": "Pin20",
+      "name": "Pinealon",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "280.00",
+      "aliases": []
+    },
+    {
+      "id": "import-9749cf8c-132d-4e3e-ab22-27aec604339d",
+      "shortName": "BBG",
+      "name": "GLOW(BPC 157 10mg+GHK-CU50mg+TB500 10mg)",
+      "specification": "70mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "560.00",
+      "aliases": []
+    },
+    {
+      "id": "import-951d106e-8c13-4a1f-8f3c-572b9d58e0fa",
+      "shortName": "GLOW70（BBG)",
+      "name": "BPC 10mg+GHK-cu50mg +TB500 10mg",
+      "specification": "70mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "570.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3ffb3aee-4ac3-4ea1-aa96-419a20f2908b",
+      "shortName": "KLOW80",
+      "name": "CU50+TB10+BC10+KPV10",
+      "specification": "80mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "590.00",
+      "aliases": []
+    },
+    {
+      "id": "import-cdb62010-a50a-44c7-b3a8-6a54ff51d929",
+      "shortName": "VP5",
+      "name": "VIP",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "210.00",
+      "aliases": []
+    },
+    {
+      "id": "import-c9e0f495-6237-4aa2-a230-6d543c777c75",
+      "shortName": "VP10",
+      "name": "VIP",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "320.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ac6202ca-ab5d-4ae2-8a8c-05828c98a10b",
+      "shortName": "SM2",
+      "name": "Semaglutide",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "66.00",
+      "aliases": []
+    },
+    {
+      "id": "import-613b60f9-0302-4857-be78-bdc7e7d297ed",
+      "shortName": "SM5",
+      "name": "Semaglutide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "105.00",
+      "aliases": []
+    },
+    {
+      "id": "import-85e4d75c-fa18-4316-ae83-177165f180ac",
+      "shortName": "SM10",
+      "name": "Semaglutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "143.00",
+      "aliases": []
+    },
+    {
+      "id": "import-eb0df08c-0e9d-4eff-9983-e2e955ce0e19",
+      "shortName": "SM15",
+      "name": "Semaglutide",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "181.00",
+      "aliases": []
+    },
+    {
+      "id": "import-dc432ae5-0863-4d21-8fdc-b15fda3b52fe",
+      "shortName": "SM20",
+      "name": "Semaglutide",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "220.00",
+      "aliases": []
+    },
+    {
+      "id": "import-875c9191-3ac9-4b0a-9e86-3c8e43017991",
+      "shortName": "SM30",
+      "name": "Semaglutide",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "286.00",
+      "aliases": []
+    },
+    {
+      "id": "import-feee647d-ab2b-4962-bbbb-0010065c6509",
+      "shortName": "SM40",
+      "name": "Semaglutide",
+      "specification": "40mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "352.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f8eafbd5-5730-42d6-8cea-54fae793a195",
+      "shortName": "SK",
+      "name": "Selank",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "70.00",
+      "aliases": []
+    },
+    {
+      "id": "import-c1799a35-b9da-4eac-9e0a-eefdc13c7b40",
+      "shortName": "SK",
+      "name": "Selank",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-1e099158-851c-48bc-8c5e-e5aaf880bd29",
+      "shortName": "SX/XA",
+      "name": "Semax",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-bb600846-e706-490a-bc9f-7cee86ef95bd",
+      "shortName": "SX/XA",
+      "name": "Semax",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "140.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b6d7df5d-9175-49ed-9c9d-ed67cbcc14d6",
+      "shortName": "SUR10",
+      "name": "Survodutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "730.00",
+      "aliases": []
+    },
+    {
+      "id": "import-b3876c2e-bd3a-44f3-b751-6a11e15999c7",
+      "shortName": "SMO2",
+      "name": "Sermorelin",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "145.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2a62a437-0f8e-4582-8d67-4f891573602e",
+      "shortName": "SMO5",
+      "name": "Sermorelin",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "160.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f4062259-d225-4556-aa31-63b95e228767",
+      "shortName": "SMO10",
+      "name": "Sermorelin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "345.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2b19cc32-ecfe-4882-b1dd-35c666d18362",
+      "shortName": "NP8",
+      "name": "Snap8",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-080a7585-d629-4f2b-9fc7-407541295577",
+      "shortName": "NP8",
+      "name": "Snap8",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "580.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3a183683-4f5f-4d74-be27-4ab4cd0a1783",
+      "shortName": "2S5",
+      "name": "SS·31",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "110.00",
+      "aliases": []
+    },
+    {
+      "id": "import-f2af1d30-9a85-4abf-97e4-fd73bf69f34c",
+      "shortName": "2S10",
+      "name": "SS·31",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "255.00",
+      "aliases": []
+    },
+    {
+      "id": "import-4d115595-7acb-4ed8-b7c6-233e861a6ad5",
+      "shortName": "2S50",
+      "name": "SS·31",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "860.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d837bbc5-fc9d-4b92-a0d4-28be9d910441",
+      "shortName": "KP",
+      "name": "KPV",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "70.00",
+      "aliases": []
+    },
+    {
+      "id": "import-28643f08-88c3-4059-85f3-aec1abae5cd0",
+      "shortName": "KP",
+      "name": "KPV",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "105.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2f191f09-7983-4cef-b65f-da39b09ad13a",
+      "shortName": "TB/BT",
+      "name": "TB500",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "100.00",
+      "aliases": []
+    },
+    {
+      "id": "import-eb6d587b-3dd2-4b71-894c-5fb8e79be20c",
+      "shortName": "TB/BT",
+      "name": "TB500",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-75451d8b-0c24-4fce-944c-9406f2ecf6bb",
+      "shortName": "TB/BT",
+      "name": "TB500",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "390.00",
+      "aliases": []
+    },
+    {
+      "id": "import-7d514b49-c03d-4fd2-af69-5a3f839fdc9e",
+      "shortName": "TSM",
+      "name": "Tesamorelin",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "120.00",
+      "aliases": []
+    },
+    {
+      "id": "import-ca6a0c81-9de0-4dab-a2ac-66e17e3f0f4e",
+      "shortName": "TSM",
+      "name": "Tesamorelin",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "240.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3384bc15-a90c-45b1-a96d-283a11f11f08",
+      "shortName": "TSM",
+      "name": "Tesamorelin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "460.00",
+      "aliases": []
+    },
+    {
+      "id": "import-fcb75cbc-ea35-4272-940c-8a54eef9ddef",
+      "shortName": "TSM",
+      "name": "Tesamorelin",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "850.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3921d3c6-6707-4386-a4fd-5180c591b37c",
+      "shortName": "TY",
+      "name": "Thymalin/Thymulin",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "140.00",
+      "aliases": []
+    },
+    {
+      "id": "import-49fba948-bcd8-4604-a681-bcfaa9907d90",
+      "shortName": "TA",
+      "name": "Thymosin alpha 1",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "220.00",
+      "aliases": []
+    },
+    {
+      "id": "import-150c5db8-a4b6-4287-ac88-f1bc61d14ecc",
+      "shortName": "TA",
+      "name": "Thymosin alpha 1",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "400.00",
+      "aliases": []
+    },
+    {
+      "id": "import-dd4612cb-e373-4056-a552-ec91ce83cce0",
+      "shortName": "",
+      "name": "Triptorelln Acetate",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "130.00",
+      "aliases": []
+    },
+    {
+      "id": "import-353f094b-98e5-4b3a-baae-1f4f560284d2",
+      "shortName": "TI",
+      "name": "Tesa10+ip5",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "340.00",
+      "aliases": []
+    },
+    {
+      "id": "import-efa429fb-15b0-4413-a62d-b22fc9e3c01f",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "66.00",
+      "aliases": []
+    },
+    {
+      "id": "import-514c9e07-a458-4393-8cc7-1f204289e3b8",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "121.00",
+      "aliases": []
+    },
+    {
+      "id": "import-548be8c3-bbad-4b35-abaa-2d0262006685",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "170.00",
+      "aliases": []
+    },
+    {
+      "id": "import-c6592bc7-20f7-437c-a58f-09389ec37fc1",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "220.00",
+      "aliases": []
+    },
+    {
+      "id": "import-cbfe33b0-e89d-4289-bf10-0af9c6deaa7c",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "325.00",
+      "aliases": []
+    },
+    {
+      "id": "import-40f9ff4a-ccc3-4683-8f93-ac26e167df2c",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "40mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "424.00",
+      "aliases": []
+    },
+    {
+      "id": "import-d76b9cab-9901-461b-b4df-2b3da3537023",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "501.00",
+      "aliases": []
+    },
+    {
+      "id": "import-69fef88b-829b-487a-bcfb-d07f23373c35",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "60mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "583.00",
+      "aliases": []
+    },
+    {
+      "id": "import-af6701d5-9adf-4f6f-9ffb-789ed07cbcc2",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "80mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "737.00",
+      "aliases": []
+    },
+    {
+      "id": "import-14cd454d-9984-4c7c-89bc-5b1dcbdcbd63",
+      "shortName": "TR",
+      "name": "Tirzepatide",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "858.00",
+      "aliases": []
+    },
+    {
+      "id": "import-9de0f060-32bb-4d84-870d-89834834b4d5",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "88.00",
+      "aliases": []
+    },
+    {
+      "id": "import-8b0cadcb-4a52-46cc-8cff-05eb29796a42",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "160.00",
+      "aliases": []
+    },
+    {
+      "id": "import-23395f0c-d463-4ccc-99c8-3c38e92f8937",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "15mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "220.00",
+      "aliases": []
+    },
+    {
+      "id": "import-746d555c-b8eb-485d-ae9f-8c52cfccce5a",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "286.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e3e56ea0-a26d-4233-9d55-a058fc16a7e8",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "30mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "407.00",
+      "aliases": []
+    },
+    {
+      "id": "import-a93af89c-fd22-4d63-852b-7fa37f1b4760",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "40mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "515.00",
+      "aliases": []
+    },
+    {
+      "id": "import-78b16472-3f85-46c7-9c38-4c357d1a3b6a",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "50mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "627.00",
+      "aliases": []
+    },
+    {
+      "id": "import-25cf40e1-098f-4647-b75f-3b879c668976",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "60mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "737.00",
+      "aliases": []
+    },
+    {
+      "id": "import-2d648a0c-5738-4e79-9140-1f31bd09a32f",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "80mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "935.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3aab20e0-3261-413c-a9af-a6231be30abb",
+      "shortName": "RT",
+      "name": "Retatrutide",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "1020.00",
+      "aliases": []
+    },
+    {
+      "id": "import-1bf3b720-d666-4634-9530-85647e11dde3",
+      "shortName": "",
+      "name": "FTPP Adipotide",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "330.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e4afcb67-0924-4fbe-84f9-7ebbfe0721cd",
+      "shortName": "",
+      "name": "SLU-PP-322",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "310.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e2911d7d-a0d6-4093-b2a7-005d169f5e86",
+      "shortName": "",
+      "name": "GDF-8",
+      "specification": "1mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "490.00",
+      "aliases": []
+    },
+    {
+      "id": "import-e0fc0c86-6dcb-4e79-a8e6-98915f5f995b",
+      "shortName": "",
+      "name": "Retatrutide 20mg + Trizepatide 40mg (10ml)",
+      "specification": "60mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "600.00",
+      "aliases": []
+    },
+    {
+      "id": "import-3bea348c-8933-446e-81a5-1bddd4aaaa82",
+      "shortName": "TBF",
+      "name": "TBFing",
+      "specification": "2mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "90.00",
+      "aliases": []
+    },
+    {
+      "id": "import-473a7e67-46fc-499a-b18e-5cfc810c0736",
+      "shortName": "",
+      "name": "Orexin A",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "1500.00",
+      "aliases": []
+    },
+    {
+      "id": "import-5fd77028-05b9-413b-b83c-a8b7e065f9a6",
+      "shortName": "",
+      "name": "Orexin B",
+      "specification": "5mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "280.00",
+      "aliases": []
+    },
+    {
+      "id": "import-51d0f3da-f814-430c-b589-554406b87ebd",
+      "shortName": "",
+      "name": "Orexin B",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "530.00",
+      "aliases": []
+    },
+    {
+      "id": "0c1afebc-0cf1-4988-a052-82c7c2457afc",
+      "shortName": "WA3",
+      "name": "WA3",
+      "specification": "3mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "16.00",
+      "aliases": []
+    },
+    {
+      "id": "8d148116-f265-42a9-90d2-90c148797515",
+      "shortName": "WA10",
+      "name": "WA10",
+      "specification": "10mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "20.00",
+      "aliases": []
+    },
+    {
+      "id": "9414ead4-92de-4f60-802d-4ad362d31c81",
+      "shortName": "AU",
+      "name": "AU · AHK-CU",
+      "specification": "100mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "5385aff6-b38d-4972-9f35-e7f347ecbcff",
+      "shortName": "笔RT · Retatrutide",
+      "name": "笔RT · Retatrutide",
+      "specification": "40mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "265.00",
+      "aliases": []
+    },
+    {
+      "id": "308b74a2-5b2f-406d-a326-2ccf19e30b5f",
+      "shortName": "笔RT",
+      "name": "RT · Retatrutide",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "200.00",
+      "aliases": []
+    },
+    {
+      "id": "import-13cca0d6-a343-4abe-b304-2dd929e7ded7",
+      "shortName": "2S20",
+      "name": "SS·31",
+      "specification": "20mg*10vials",
+      "category": "未分类",
+      "unit": "盒",
+      "price": "490.00",
+      "aliases": []
+    }
+  ],
+  "revision": 10,
+  "updatedAt": "2026-09-20T13:55:56.261Z"
+}
