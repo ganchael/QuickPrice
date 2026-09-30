@@ -11,6 +11,16 @@ function workbook(rows, merges = []) {
   const book = utils.book_new(); utils.book_append_sheet(book, sheet, '商品');
   return write(book, { type: 'array', bookType: 'xlsx' });
 }
+test('HTTP entry point imports products without secure-context randomUUID', (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+  Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+  t.after(() => descriptor ? Object.defineProperty(crypto, 'randomUUID', descriptor) : delete crypto.randomUUID);
+  assert.equal(crypto.randomUUID, undefined);
+  const r = importWorkbook(workbook([['名称', '规格', '价格'], ['Test A', '5mg', 20], ['Test B', '10mg', 30]]));
+  assert.equal(r.products.length, 2);
+  assert.notEqual(r.products[0].id, r.products[1].id);
+  assert.ok(r.products.every(p => /^import-[a-f0-9]{32}$/.test(p.id)));
+});
 test('parallel tables, merged names/codes, unmerged continuation and merged SKU extension', () => {
   const r = importWorkbook(workbook([
     ['九月价目表'], ['', '名称', '规格', '元/盒', '', '', '名称', '规格', '元/盒'],
@@ -45,6 +55,28 @@ test('repeat import updates stable IDs; distinct specifications remain distinct'
   const m = mergeCatalog(r.products, updated);
   assert.equal(m.added, 0); assert.equal(m.updated, 2); assert.equal(m.products[0].id, r.products[0].id); assert.equal(m.products[1].price, '40.00');
   assert.throws(() => validateCatalog([...m.products, { ...m.products[0], id: crypto.randomUUID() }]));
+});
+test('different abbreviations preserve separate prices for identical names and specifications', () => {
+  const incoming = importWorkbook(workbook([
+    ['简称', '名称', '规格', '价格'],
+    ['BT10', 'TB500', '10mg*10vials', 373],
+    ['TB10(BT)', 'TB500', '10mg*10vials', 390],
+  ]));
+  assert.equal(incoming.products.length, 2);
+  assert.equal(incoming.issues.length, 0);
+  assert.equal(validateCatalog(incoming.products).length, 2);
+  const old = { ...incoming.products[1], id: 'stable-tb', price: '400.00' };
+  const first = mergeCatalog([old], incoming.products);
+  assert.equal(first.added, 1);
+  assert.equal(first.updated, 1);
+  assert.equal(first.products.find(p => p.shortName === 'TB10(BT)').id, old.id);
+  assert.deepEqual(first.products.map(p => p.price).sort(), ['373.00', '390.00']);
+  const again = mergeCatalog(first.products, incoming.products.map(p => ({ ...p, id: crypto.randomUUID() })));
+  assert.equal(again.added, 0);
+  assert.deepEqual(again.products, first.products);
+  assert.equal(summarize(parseQuote('TB500 10mg*10vials × 1', first.products)).pending, 1);
+  assert.equal(summarize(parseQuote('BT10 × 1', first.products)).cents, 37300);
+  assert.equal(summarize(parseQuote('TB10(BT) × 1', first.products)).cents, 39000);
 });
 test('short names and full names are both searchable, displayed in exports, and ambiguity is blocked', () => {
   const r = importWorkbook(workbook([['简称', '名称', '规格', '价格'], ['SM5', 'Semaglutide', '5mg', 105], ['SM10', 'Semaglutide', '10mg', 180], ['AX', 'Adamax', '5mg', 200], ['AX', 'Adamax', '10mg', 330], ['SX', 'Semax', '5mg', 80]]));

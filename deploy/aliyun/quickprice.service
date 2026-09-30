@@ -1,0 +1,23 @@
+[Unit]
+Description=QuickPrice pricing assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=quickprice
+Group=quickprice
+WorkingDirectory=/opt/quickprice
+Environment=PATH=/usr/local/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=WRANGLER_SEND_METRICS=false
+Environment=CI=1
+Environment=WRANGLER_LOG_PATH=/var/lib/quickprice/logs
+ExecStart=/opt/quickprice/node_modules/.bin/wrangler dev --local --config=/opt/quickprice/dist/server/wrangler.json --env-file=/etc/quickprice/runtime.env --ip 127.0.0.1 --port 3000 --persist-to /var/lib/quickprice
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

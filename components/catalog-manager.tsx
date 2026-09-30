@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } fr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import { moneyCents, productDisplayName, productSecondaryName, searchProducts, type Product } from '@/lib/pricing';
-import { catalogKey, mergeCatalog, validateProduct } from '@/lib/catalog';
+import { catalogVariantKey, mergeCatalog, validateProduct } from '@/lib/catalog';
 import type { ImportResult } from '@/lib/import-workbook';
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; products: Product[]; ready: boolean; saving: boolean; cloudError: string; updatedAt: string | null; onRefresh: () => Promise<Product[] | undefined>; onSave: (products: Product[]) => Promise<void> };
@@ -39,7 +39,7 @@ export function CatalogManager(props: Props) {
     if (!editing) return;
     try {
       const product = validateProduct(editing);
-      if (props.products.some(p => p.id !== product.id && catalogKey(p) === catalogKey(product))) throw new Error('相同名称、规格和单位的商品已存在。');
+      if (props.products.some(p => p.id !== product.id && catalogVariantKey(p) === catalogVariantKey(product))) throw new Error('相同简称、名称、规格和单位的商品已存在。');
       const next = props.products.some(p => p.id === product.id) ? props.products.map(p => p.id === product.id ? product : p) : [...props.products, product];
       if (await commit(next)) { setEditing(null); toast.add({ title: '商品已保存到云端', type: 'success' }); }
     } catch (e) { setError((e as Error).message); }
@@ -80,7 +80,7 @@ export function CatalogManager(props: Props) {
         <label>单价（元 / {editing.unit || '单位'}）<input className="field-input" value={editing.price} onChange={e => setEditing({ ...editing, price: e.target.value })} inputMode="decimal" placeholder="留空为待定" /></label>
       </fieldset><p className="quiet-note">目录单价用于后续计价；已生成的报价保留当前单价。未填写价格的商品不会自动计入金额。</p></section>
       : preview ? <section className="import-preview"><div className="import-result-heading"><FileSpreadsheet size={27} /><div><h3>{fileName}</h3><p>识别 {preview.products.length} 条规格 · {new Set(preview.products.map(p => p.name)).size} 个产品名称 · {preview.sheetCount} 个工作表</p></div></div>
-        <p className="import-notice">简称与完整名称同时保留。{preview.missingShortNames > 0 ? `${preview.missingShortNames} 项没有简称，将直接显示完整名称。` : ''}相同名称、规格和单位的商品将更新，其余商品保留。</p>
+        <p className="import-notice">简称与完整名称同时保留。{preview.missingShortNames > 0 ? `${preview.missingShortNames} 项没有简称，将直接显示完整名称。` : ''}同名同规格有不同简称时分别保留。再次导入相同商品会更新价格，其余商品保留。</p>
         <div className="catalog-table-scroll preview-scroll"><Table><TableHeader><TableRow><TableHead>商品</TableHead><TableHead>规格</TableHead><TableHead>单价</TableHead></TableRow></TableHeader><TableBody>{preview.products.map(p => <TableRow key={p.id}><TableCell><div className="catalog-product-name"><strong>{productDisplayName(p)}</strong>{productSecondaryName(p) && <span>{productSecondaryName(p)}</span>}</div></TableCell><TableCell>{p.specification || '未填写规格'}</TableCell><TableCell className="catalog-price">{p.price ? `¥${p.price}/${p.unit}` : '待定'}</TableCell></TableRow>)}</TableBody></Table></div>
         {preview.issues.length > 0 && <details className="import-issues"><summary>{preview.issues.length} 条提示{preview.skipped ? `，${preview.skipped} 行未导入` : ''}</summary><ul>{preview.issues.map((i, n) => <li key={n}>{i.sheet} · 第 {i.row} 行：{i.message}</li>)}</ul></details>}
       </section> : <>

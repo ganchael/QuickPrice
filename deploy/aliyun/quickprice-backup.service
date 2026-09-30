@@ -1,0 +1,7 @@
+[Unit]
+Description=Back up QuickPrice catalog and SQLite database
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/quickprice/deploy/aliyun/backup.py
+UMask=0077

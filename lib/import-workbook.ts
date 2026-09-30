@@ -1,6 +1,6 @@
 import { read, utils, type WorkSheet, type Range } from 'xlsx';
 import { moneyCents, normalize, type Product } from './pricing.ts';
-import { catalogKey, MAX_PRODUCTS } from './catalog.ts';
+import { catalogVariantKey, MAX_PRODUCTS } from './catalog.ts';
 
 export type ImportIssue = { sheet: string; row: number; message: string };
 export type ImportResult = { products: Product[]; issues: ImportIssue[]; sheetCount: number; missingShortNames: number; skipped: number };
@@ -12,6 +12,10 @@ const isName = (value: Cell | undefined) => /^(名称|产品名称|商品名称|
 const isCode = (value: Cell | undefined) => /^(简称|产品简称|商品简称|产品缩写|缩写|型号|货号|编码|SKU|CODE|SHORTNAME)$/.test(header(value));
 const isSpec = (value: Cell | undefined) => /^(规格|产品规格|包装规格|SPEC|SPECIFICATION|SIZE)$/.test(header(value));
 const isPrice = (value: Cell | undefined) => /^(?:单价|价格|批发价|批发价格|售价|元[/／]|PRICE|UNITPRICE)/.test(header(value));
+// getRandomValues also works on the HTTP IP entry point used for self-hosting.
+function importId() {
+  return `import-${Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('')}`;
+}
 function blocksAt(rows: Cell[][], row: number): Block[] {
   const cells = rows[row], names = cells.map((v, i) => isName(v) ? i : -1).filter(i => i >= 0);
   return names.flatMap((name, n) => {
@@ -59,8 +63,8 @@ function parseSheet(sheet: WorkSheet, sheetName: string, result: ImportResult) {
       const validGrouping = !cleanedPrice.includes(',') || /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(cleanedPrice);
       const cents = validGrouping ? moneyCents(cleanedPrice.replace(/,/g, '')) : null;
       if (cents === null) result.issues.push({ sheet: sheetName, row: r + 1, message: `${shortName || name} 的价格为空或无效，已留空，需补充后计价。` });
-      const product: Product = { id: `import-${crypto.randomUUID()}`, name, shortName, specification, price: cents === null ? '' : (cents / 100).toFixed(2), category: mergedText(rows, merges, r, b.category) || '未分类', unit: mergedText(rows, merges, r, b.unit) || b.defaultUnit, aliases: [] };
-      if (result.products.some(p => catalogKey(p) === catalogKey(product))) { result.skipped++; result.issues.push({ sheet: sheetName, row: r + 1, message: `${name} ${specification} 重复，保留首次出现的记录。` }); continue; }
+      const product: Product = { id: importId(), name, shortName, specification, price: cents === null ? '' : (cents / 100).toFixed(2), category: mergedText(rows, merges, r, b.category) || '未分类', unit: mergedText(rows, merges, r, b.unit) || b.defaultUnit, aliases: [] };
+      if (result.products.some(p => catalogVariantKey(p) === catalogVariantKey(product))) { result.skipped++; result.issues.push({ sheet: sheetName, row: r + 1, message: `${shortName || name} ${specification} 重复，保留首次出现的记录。` }); continue; }
       result.products.push(product);
       if (result.products.length > MAX_PRODUCTS) throw new Error(`每次最多导入 ${MAX_PRODUCTS} 条规格，请拆分文件。`);
     }
