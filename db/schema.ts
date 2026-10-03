@@ -17,3 +17,10 @@ export const loginAttempts = sqliteTable('login_attempts', {
   attempts: integer('attempts').notNull(),
   resetAt: integer('reset_at').notNull(),
 });
+
+// Shared public rate cache survives process restarts and is independent of catalogs.
+export const exchangeRateCache = sqliteTable('exchange_rate_cache', {
+  cacheKey: text('cache_key').primaryKey(),
+  quoteJson: text('quote_json').notNull(),
+  storedAt: text('stored_at').notNull(),
+});

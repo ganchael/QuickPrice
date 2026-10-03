@@ -11,10 +11,25 @@ import { useMobileViewport } from '@/hooks/use-mobile-viewport';
 import { ProductPicker } from '@/components/product-picker';
 import { TypingTitle } from '@/components/typing-title';
 import { quoteFilename, rateUnits, usdtAmount } from '@/lib/quote-export';
+import { OKX_RATE_PAGE, COINGATE_RATE_URL } from '@/lib/live-rate';
 import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, productLabel, productDisplayName, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
 
 type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
 type Props = { user: { userId: string; displayName: string } };
+type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; warning?: string; error?: string };
+const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-rate';
+const RATE_STORAGE_MAX_AGE = 24 * 60 * 60 * 1000;
+function storedRate(): RateResponse | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(RATE_STORAGE_KEY) || 'null') as RateResponse | null;
+    const fetched = Date.parse(value?.fetchedAt || value?.updatedAt || '');
+    if (!value || typeof value.rate !== 'string' || rateUnits(value.rate) === null || typeof value.source !== 'string' || ![OKX_RATE_PAGE, COINGATE_RATE_URL].includes(value.sourceUrl) || !Number.isFinite(fetched) || fetched > Date.now() + 60000 || Date.now() - fetched > RATE_STORAGE_MAX_AGE) return null;
+    return value;
+  } catch { return null; }
+}
+function rememberRate(value: RateResponse) {
+  try { localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(value)); } catch { /* Private browsing may deny storage. */ }
+}
 export default function QuickPriceApp({ user }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
@@ -33,28 +48,54 @@ export default function QuickPriceApp({ user }: Props) {
   const [rateLoading, setRateLoading] = useState(true);
   const [rateMessage, setRateMessage] = useState('正在获取最新汇率…');
   const [rateSource, setRateSource] = useState('手动设置');
-  const [rateSourceUrl, setRateSourceUrl] = useState('https://www.okx.com/zh-hans/convert/usdt-to-cny');
+  const [rateSourceUrl, setRateSourceUrl] = useState(OKX_RATE_PAGE);
+  const exchangeRateRef = useRef('');
   const rateRequest = useRef(0);
-  const refreshRate = useCallback(async () => {
+  const rateAbort = useRef<AbortController | null>(null);
+  const refreshRate = useCallback(async (force = false) => {
     const request = ++rateRequest.current;
+    rateAbort.current?.abort();
+    const controller = new AbortController();
+    rateAbort.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 9000);
     setRateLoading(true); setRateMessage('正在获取最新汇率…');
     try {
-      const response = await fetch('/api/exchange-rate', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
-      const data = await response.json() as { rate: string; updatedAt: string; source: string; kind: string; sourceUrl: string };
+      const response = await fetch(force ? '/api/exchange-rate?refresh=1' : '/api/exchange-rate', { cache: 'no-store', signal: controller.signal });
+      const data = await response.json() as RateResponse;
+      if (!response.ok || typeof data.rate !== 'string' || rateUnits(data.rate) === null || !Number.isFinite(Date.parse(data.updatedAt)) || ![OKX_RATE_PAGE, COINGATE_RATE_URL].includes(data.sourceUrl)) throw new Error(data.error || '服务器汇率不可用');
       if (request !== rateRequest.current) return;
-      if (!response.ok || typeof data.rate !== 'string' || rateUnits(data.rate) === null || !Number.isFinite(Date.parse(data.updatedAt))) throw new Error('获取失败');
-      setExchangeRate(data.rate); setRateError(false);
-      const source = `${data.source} · ${new Date(data.updatedAt).toLocaleString('zh-CN', { hour12: false })}`;
+      exchangeRateRef.current = data.rate; setExchangeRate(data.rate); setRateError(false);
+      const source = `${data.source} · ${new Date(data.fetchedAt || data.updatedAt).toLocaleString('zh-CN', { hour12: false })}${data.kind === 'stale' ? ' · 缓存汇率' : ''}`;
       setRateSourceUrl(data.sourceUrl);
-      setRateSource(source); setRateMessage(source);
+      setRateSource(source); setRateMessage(`${source}${data.warning ? ` · ${data.warning}` : ''}`);
+      if (data.kind !== 'stale') rememberRate(data);
     } catch {
-      if (request === rateRequest.current) setRateMessage('欧易汇率获取失败，请手动填写或重试；已有汇率未更新。');
-    } finally { if (request === rateRequest.current) setRateLoading(false); }
+      if (request === rateRequest.current) {
+        const previous = storedRate();
+        if (rateUnits(exchangeRateRef.current) === null && previous) {
+          exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate);
+          setRateSource(`${previous.source} · ${new Date(previous.fetchedAt || previous.updatedAt).toLocaleString('zh-CN', { hour12: false })} · 缓存汇率`);
+          setRateSourceUrl(previous.sourceUrl);
+        }
+        setRateMessage(rateUnits(exchangeRateRef.current) !== null ? '最新汇率暂时不可用，已保留当前汇率；点击“最新”重试。' : '最新汇率暂时不可用，请手动填写或点击“最新”重试。');
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (request === rateRequest.current) setRateLoading(false);
+    }
   }, []);
-  useEffect(() => { void refreshRate(); return () => { rateRequest.current++; }; }, [refreshRate]);
+  useEffect(() => {
+    const previous = storedRate();
+    if (previous) {
+      exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate); setRateSource(`${previous.source} · ${new Date(previous.fetchedAt || previous.updatedAt).toLocaleString('zh-CN', { hour12: false })} · 缓存汇率`); setRateSourceUrl(previous.sourceUrl); setRateMessage('已使用上次成功汇率，正在刷新最新行情…');
+    }
+    void refreshRate();
+    return () => { rateRequest.current++; rateAbort.current?.abort(); };
+  }, [refreshRate]);
   const updateRate = (value: string) => {
     rateRequest.current++;
-    setExchangeRate(value); setRateError(false);
+    rateAbort.current?.abort();
+    exchangeRateRef.current = value; setExchangeRate(value); setRateError(false);
     setRateLoading(false); setRateSource('手动设置'); setRateMessage('手动汇率 · 点击“最新”可恢复行情');
   };
   const [inputError, setInputError] = useState('');
@@ -120,6 +161,14 @@ export default function QuickPriceApp({ user }: Props) {
     try { const next = parseQuote(text, products); setLines(next); setIsExample(false); setInputError(''); const s = summarize(next); toast.add({ title: `已解析 ${s.count} 项${s.pending ? `，${s.pending} 项需要完善` : '，计价完成'}`, type: s.pending ? 'warning' : 'success' }); }
     catch (error) { setInputError((error as Error).message); }
   };
+  const startNewQuote = () => {
+    setLines([]);
+    setText('');
+    setIsExample(false);
+    setInputError('');
+    setResetOpen(false);
+    toast.add({ title: '已新建报价，可以开始添加项目', type: 'success' });
+  };
   const addLine = () => {
     if (!selectedProduct || quantityValue(addQuantity) === null) { setInputError('请选择产品，并填写 1–999999 的整数数量。'); return; }
     if (lines.length >= MAX_LINES) { setInputError('每份清单最多支持 200 项。'); return; }
@@ -152,7 +201,7 @@ export default function QuickPriceApp({ user }: Props) {
       <div className="nav-actions"><button className="account-link" onClick={() => void signOut()} disabled={loggingOut || saving}>{loggingOut ? '正在退出…' : '退出登录'}</button><button className="nav-button" aria-label="商品价格库" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>商品库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
     </div></header>
     <main id="main" className={`workspace ${lines.length ? 'has-lines' : ''}`}>
-      <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />你的轻量计价工作台</div><h1><span className="desktop-page-title"><TypingTitle text="每一笔，算得清楚。" /></span><span className="mobile-page-title"><TypingTitle text="快速计价" /></span></h1><p>输入清单，即刻匹配。让报价简单一点。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
+      <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />药品研发计价工作台</div><h1><span className="desktop-page-title"><TypingTitle text="每一笔，算得清楚。" /></span><span className="mobile-page-title"><TypingTitle text="快速计价" /></span></h1><p>为药物研发团队提供专业、高效的计价服务。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
       <div className="account-banner"><span>云端商品库 · {user.displayName}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button></div>
       <div className="workspace-grid">
         <aside className="input-column">
@@ -193,16 +242,17 @@ export default function QuickPriceApp({ user }: Props) {
             <div className="details-footer"><span><span className={`tiny-dot ${summary.pending ? 'pending' : ''}`} />{summary.pending ? `${summary.pending} 项待完善，暂未计入合计` : lines.length ? '所有项目已计价' : '等待添加项目'}</span><button className="text-button" onClick={() => { setMode('manual'); document.querySelector('.input-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Plus size={14} />添加项目</button></div>
           </section>
           <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{summary.pending ? '已确认金额' : '合计金额'}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · 单价 × 数量</span><span>{summary.pending ? '完善全部项目后可导出' : '核对后即可导出报价'}</span></div></section>
-          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate()} disabled={rateLoading} aria-label="获取最新 USDT 汇率" aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
+          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label="获取最新 USDT 汇率" aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
           <p id="rate-hint" className="rate-status" role="status">{rateError || (!!exchangeRate && rateUnits(exchangeRate) === null) ? '请输入大于 0 的汇率，最多 6 位整数、6 位小数。' : rateMessage} · {summary.safe && usdtAmount(summary.cents, exchangeRate) !== null ? `折合 ${usdtAmount(summary.cents, exchangeRate)} USDT` : '待换算'}<a href={rateSourceUrl} target="_blank" rel="noreferrer">行情来源</a></p>
           <p className="session-note">商品库在云端保存；当前报价为临时清单，离开前请导出。</p>
         </section>
       </div>
-      <footer className="page-footer"><span className="footer-brand"><Zap size={13} />QuickPrice</span><span>简单输入，清晰报价。</span></footer>
+      <footer className="page-footer"><span className="footer-brand"><Zap size={13} />QuickPrice</span><span>研发清单，快速算清。</span></footer>
+      <nav className="mobile-nav" aria-label="主要导航"><button type="button" className="mobile-nav-item is-active" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><FileText size={20} /><span>报价</span></button><button type="button" className="mobile-nav-item" onClick={() => setCatalogOpen(true)}><Package size={20} /><span>商品库</span></button><button type="button" className="mobile-nav-item" onClick={() => setHelpOpen(true)}><SlidersHorizontal size={20} /><span>设置</span></button></nav>
     </main>
     <CatalogManager open={catalogOpen} onOpenChange={setCatalogOpen} products={products} ready={ready} saving={saving} cloudError={cloudError} updatedAt={updatedAt} onRefresh={refreshCatalog} onSave={saveCatalog} />
     <Dialog open={helpOpen} onOpenChange={setHelpOpen}><DialogContent className="help-dialog" showCloseButton={false}><div className="dialog-heading"><DialogTitle>快速上手</DialogTitle><DialogClose className="icon-button" aria-label="关闭使用说明"><X size={20} /></DialogClose></div><DialogDescription>从客户清单到报价，只需三个步骤。</DialogDescription><ol className="help-list"><li><strong>输入型号与数量</strong><p>每行一个项目，支持 SM5×20、SM5*20、SM5x20 或 SM5 20盒。也可用分号分隔；逗号会分隔项目，请勿在数字中使用千位分隔符。</p></li><li><strong>核对匹配与单价</strong><p>支持产品简称、完整名称和名称加规格。不区分大小写；同名或同简称有多种规格时，请在匹配框搜索并选择具体规格，系统不会猜测价格。</p></li><li><strong>调整数量，导出报价</strong><p>数量为正整数，单价最多两位小数。金额按分精确计算。全部项目完善后可复制报价或导出 Excel 可打开的 CSV 文件。</p></li></ol></DialogContent></Dialog>
-    <AlertDialog open={resetOpen} onOpenChange={setResetOpen}><AlertDialogContent><AlertDialogTitle>开始一份新报价？</AlertDialogTitle><AlertDialogDescription>当前清单和输入内容将清空。需要保留的报价，请先导出。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel>保留当前报价</AlertDialogCancel><AlertDialogAction onClick={() => { setLines([]); setText(''); setIsExample(false); setInputError(''); setResetOpen(false); }}>新建报价</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={resetOpen} onOpenChange={setResetOpen}><AlertDialogContent><AlertDialogTitle>开始一份新报价？</AlertDialogTitle><AlertDialogDescription>当前清单和输入内容将清空。需要保留的报价，请先导出。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel>保留当前报价</AlertDialogCancel><AlertDialogAction type="button" onClick={startNewQuote}>新建报价</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <Dialog open={copyOpen} onOpenChange={setCopyOpen}><DialogContent><DialogTitle>手动复制报价</DialogTitle><DialogDescription>浏览器未允许自动复制，请长按或全选以下内容复制。</DialogDescription><textarea className="quote-textarea" readOnly value={rateUnits(exchangeRate) !== null ? quoteText(lines, products, exchangeRate, rateSource) : ''} onFocus={e => e.target.select()} aria-label="报价文本" /></DialogContent></Dialog>
   </Toaster>;
 }

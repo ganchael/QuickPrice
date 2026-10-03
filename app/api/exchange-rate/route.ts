@@ -1,26 +1,39 @@
 import { getAccountUser } from '@/app/account-auth';
-import { parseOkxRate, OKX_RATE_PAGE } from '@/lib/live-rate';
+import { getCatalogDatabase } from '@/db';
+import { createRateService } from '@/lib/rate-service';
+import type { RateQuote } from '@/lib/live-rate';
 
 export const dynamic = 'force-dynamic';
-let cached: { value: ReturnType<typeof parseOkxRate>; expires: number } | undefined;
-let pending: Promise<ReturnType<typeof parseOkxRate>> | undefined;
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
-export async function GET() {
+let cacheTable: Promise<unknown> | undefined;
+
+async function cacheDatabase() {
+  const db = getCatalogDatabase();
+  if (!cacheTable) {
+    cacheTable = db.prepare('CREATE TABLE IF NOT EXISTS exchange_rate_cache (cache_key TEXT PRIMARY KEY, quote_json TEXT NOT NULL, stored_at TEXT NOT NULL)').run().catch(error => { cacheTable = undefined; throw error; });
+  }
+  await cacheTable;
+  return db;
+}
+
+const rates = createRateService({
+  readStored: async () => {
+    const db = await cacheDatabase();
+    const row = await db.prepare('SELECT quote_json FROM exchange_rate_cache WHERE cache_key = ?').bind('USDT-CNY').first<{ quote_json: string }>();
+    return row ? JSON.parse(row.quote_json) : undefined;
+  },
+  writeStored: async (quote: RateQuote) => {
+    const db = await cacheDatabase();
+    await db.prepare('INSERT INTO exchange_rate_cache (cache_key, quote_json, stored_at) VALUES (?, ?, ?) ON CONFLICT(cache_key) DO UPDATE SET quote_json = excluded.quote_json, stored_at = excluded.stored_at').bind('USDT-CNY', JSON.stringify(quote), new Date().toISOString()).run();
+  },
+});
+
+export async function GET(request: Request) {
   if (!await getAccountUser()) return json({ error: '请先登录。' }, 401);
   try {
-    if (cached && Date.now() < cached.expires) return json(cached.value);
-    if (!pending) pending = (async () => {
-      const response = await fetch(OKX_RATE_PAGE, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
-      if (!response.ok) throw new Error(`欧易行情服务返回 ${response.status}`);
-      const age = Number(response.headers.get('age') ?? 0);
-      if (age > 900) throw new Error('欧易页面缓存已过期');
-      const value = parseOkxRate(await response.text());
-      cached = { value, expires: Date.now() + 60000 };
-      return value;
-    })().finally(() => { pending = undefined; });
-    return json(await pending);
+    return json(await rates.get({ force: new URL(request.url).searchParams.get('refresh') === '1' }));
   } catch (error) {
-    console.warn('OKX exchange rate unavailable:', error instanceof Error ? error.message : 'unknown error');
-    return json({ error: '欧易汇率获取失败，请手动输入或重试。' }, 503);
+    console.warn('USDT exchange rate unavailable:', error instanceof Error ? error.message : 'unknown error');
+    return json({ error: '最新汇率获取失败，请手动输入或稍后重试。' }, 503);
   }
 }

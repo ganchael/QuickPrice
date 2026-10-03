@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react';
 
 const TITLES = [
+  ['早上好，开始一份新报价', '开始新报价'],
   ['每一笔，算得清楚。', '快速计价'],
+  ['研发清单，快速算清。', '研发计价'],
   ['选好商品，即刻报价。', '即刻报价'],
   ['数量一改，价格即来。', '随量计价'],
   ['一份清单，轻松算完。', '轻松算完'],
@@ -54,7 +56,7 @@ export function TypingTitle({ text }: { text: string }) {
   }, [compact, text]);
   return <span className="typing-title">
     <span className="sr-only">{text}</span>
-    <span className="typing-space" aria-hidden="true">{compact ? '快速计价' : '选好商品，即刻报价。'}</span>
+    <span className="typing-space" aria-hidden="true">{compact ? '快速计价' : '早上好，开始一份新报价'}</span>
     <span className={`typing-output is-${phase}`} aria-hidden="true">{display}<span className="typing-cursor" /></span>
   </span>;
 }
