@@ -6,6 +6,8 @@ import type { RateQuote } from '@/lib/live-rate';
 export const dynamic = 'force-dynamic';
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
 let cacheTable: Promise<unknown> | undefined;
+// Keep the former payment conversion cache separate from market references.
+const CACHE_KEY = 'USDT-CNY:market-v2';
 
 async function cacheDatabase() {
   const db = getCatalogDatabase();
@@ -19,12 +21,12 @@ async function cacheDatabase() {
 const rates = createRateService({
   readStored: async () => {
     const db = await cacheDatabase();
-    const row = await db.prepare('SELECT quote_json FROM exchange_rate_cache WHERE cache_key = ?').bind('USDT-CNY').first<{ quote_json: string }>();
+    const row = await db.prepare('SELECT quote_json FROM exchange_rate_cache WHERE cache_key = ?').bind(CACHE_KEY).first<{ quote_json: string }>();
     return row ? JSON.parse(row.quote_json) : undefined;
   },
   writeStored: async (quote: RateQuote) => {
     const db = await cacheDatabase();
-    await db.prepare('INSERT INTO exchange_rate_cache (cache_key, quote_json, stored_at) VALUES (?, ?, ?) ON CONFLICT(cache_key) DO UPDATE SET quote_json = excluded.quote_json, stored_at = excluded.stored_at').bind('USDT-CNY', JSON.stringify(quote), new Date().toISOString()).run();
+    await db.prepare('INSERT INTO exchange_rate_cache (cache_key, quote_json, stored_at) VALUES (?, ?, ?) ON CONFLICT(cache_key) DO UPDATE SET quote_json = excluded.quote_json, stored_at = excluded.stored_at').bind(CACHE_KEY, JSON.stringify(quote), new Date().toISOString()).run();
   },
 });
 

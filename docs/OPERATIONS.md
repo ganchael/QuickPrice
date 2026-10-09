@@ -21,7 +21,7 @@
 - `catalogs`：用户商品 JSON、版本号、更新时间。
 - `auth_sessions`：会话令牌的哈希及到期时间。
 - `login_attempts`：登录限流记录。
-- `exchange_rate_cache`：`USDT-CNY` 的成功参考汇率、来源及获取时间；用于服务重启后的恢复。
+- `exchange_rate_cache`：`USDT-CNY:market-v2` 的成功市场参考汇率、来源及获取时间；用于服务重启后的恢复。旧 `USDT-CNY` 记录不再读取。
 
 本地开发使用 Vite 配置中的本地 D1 绑定。阿里云部署复用 Worker 构建，通过 Wrangler/Miniflare 的本地 D1 SQLite 存储运行；数据在 `/var/lib/quickprice/v3/d1/`，不依赖原 Sites。此方式沿用了开发运行器，需固定依赖版本；不是云端 D1 托管服务。原 Sites 使用平台提供的真实绑定，配置文件中的占位数据库 ID 不是数据库地址。
 
@@ -97,20 +97,20 @@ curl -I http://127.0.0.1/login
 
 ## 汇率
 
-浏览器只调用同源 `/api/exchange-rate`；不会直接请求 OKX、CoinGate 或页面读取代理。所有外部请求由上海服务器处理，用户关闭 VPN 不影响客户端取得本站返回的汇率。接口需要有效登录，响应使用 `private, no-store`，未经登录返回 401。
+浏览器只调用同源 `/api/exchange-rate`；不会直接请求交易所或页面读取代理。所有外部请求由上海服务器处理，客户端无需连接外部行情源。接口需要有效登录，响应使用 `private, no-store`，未经登录返回 401。
 
 服务端依次尝试：
 
-1. [欧易 OKX USDT/CNY 页面](https://www.okx.com/zh-hans/convert/usdt-to-cny)：解析 `appState` 的币对与 `convertInfo.rate`；请求、读取和解析总超时 2.5 秒。
-2. [CoinGate USDT/CNY 支付换算接口](https://api.coingate.com/v2/rates/merchant/USDT/CNY)：OKX 超时、拦截或数据无效时启用；总超时 4 秒，严格接受数字或数字字符串。
+1. [KuCoin EU USDT/CNY 接口](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT)：固定法币 CNY、币种 USDT，严格校验业务码 `200000` 和 `data.USDT`，总超时 4 秒。接口约定见 [KuCoin Get Fiat Price](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-fiat-price)。采用供应商返回的 USDT 价格，没有将 USDT 恒定视为 1 美元，也没有使用硬编码汇率。
+2. [欧易 OKX USDT/CNY 页面](https://www.okx.com/zh-hans/convert/usdt-to-cny)：KuCoin 超时、拦截或数据无效时启用，解析 `appState` 的币对与 `convertInfo.rate`；总超时 2.5 秒。
 
-两个上游串行预算为 6.5 秒，持久缓存读写各最多等待 150 毫秒；前端等待本站响应最多 9 秒。CoinGate 标注为“CoinGate 支付换算参考”，不冒称 OKX 现价。支付换算参考可能包含风险和流动性调整，与交易所成交价存在差异；页面显示实际来源和获取时间。两者均保留 6 位小数，人民币金额除以 CNY/USDT 汇率得到 USDT。
+两个上游串行预算为 6.5 秒，持久缓存读写各最多等待 150 毫秒；前端等待本站响应最多 9 秒。页面显示实际来源及获取时间：上游未提供行情更新时间，不能把请求时间当成成交时间。显示 6 位小数取自上游原始报价，不通过添加随机数字制造波动；点击“最新”会重新请求，但市场参考本身可能保持不变。参考价与 P2P 商家买卖成交价并不相同。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率。
 
 成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存。并发刷新合并为一次上游请求，手动修改会取消当前页面请求，迟到结果不会覆盖手动值。
 
-成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存；服务器还校验来源白名单和时间，拒绝未来时间。服务重启会从 D1 读取成功值，一分钟内的值可直接作为缓存；强制刷新仍访问上游。全部来源失败时，24 小时内最近成功值返回 `kind: stale`，保留原始来源、获取时间并明确显示缓存提示。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
+成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:market-v2`，浏览器键升级为 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源，旧支付换算缓存不会再次显示。服务重启会从 D1 读取成功值，一分钟内的值可直接作为缓存；强制刷新仍访问上游。全部来源失败时，24 小时内最近成功值返回 `kind: stale`，保留原始来源、获取时间并明确显示缓存提示。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
 
-2026-10-03 在上海服务器验证，OKX 官网超时后，本站强制刷新经 CoinGate 返回 HTTP 200；验收当时参考值为 6.71 CNY/USDT、约 4.2 秒返回。这个数值只是验收记录，不是应用默认值或固定报价。证书配置见上面的系统 CA 部分。
+2026-10-03 曾使用 CoinGate 国内访问后备；2026-10-10 核实它的原始响应仅为 `6.7`，显示补齐为 `6.700000`，故停用。替代源在上海服务器无代理直连测试 HTTP 200，原始 USDT/CNY 为 `6.6962679300000000`，USDT/USD 为 `0.9991000000000000`。数值仅为当次验收记录，不是默认值；证书配置见上面的系统 CA 部分。
 
 ## 服务器每日备份
 

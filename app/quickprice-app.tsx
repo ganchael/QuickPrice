@@ -11,19 +11,27 @@ import { useMobileViewport } from '@/hooks/use-mobile-viewport';
 import { ProductPicker } from '@/components/product-picker';
 import { TypingTitle } from '@/components/typing-title';
 import { quoteFilename, rateUnits, usdtAmount } from '@/lib/quote-export';
-import { OKX_RATE_PAGE, COINGATE_RATE_URL } from '@/lib/live-rate';
+import { OKX_RATE_PAGE, KUCOIN_RATE_URL } from '@/lib/live-rate';
 import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, productLabel, productDisplayName, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
 
 type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
 type Props = { user: { userId: string; displayName: string } };
 type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; warning?: string; error?: string };
-const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-rate';
+const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-market-rate:v2';
 const RATE_STORAGE_MAX_AGE = 24 * 60 * 60 * 1000;
+function validRate(value: RateResponse | null): value is RateResponse {
+  const fetched = Date.parse(value?.fetchedAt || '');
+  const updated = Date.parse(value?.updatedAt || '');
+  const source = value?.sourceUrl === KUCOIN_RATE_URL ? 'KuCoin 市场参考 · 获取于' : value?.sourceUrl === OKX_RATE_PAGE ? '欧易 OKX · 获取于' : null;
+  return !!value && typeof value.rate === 'string' && rateUnits(value.rate) !== null &&
+    source !== null && value.source === source && ['reference', 'stale'].includes(value.kind) &&
+    Number.isFinite(fetched) && Number.isFinite(updated) && updated <= fetched &&
+    fetched <= Date.now() + 60000 && Date.now() - updated <= RATE_STORAGE_MAX_AGE;
+}
 function storedRate(): RateResponse | null {
   try {
     const value = JSON.parse(localStorage.getItem(RATE_STORAGE_KEY) || 'null') as RateResponse | null;
-    const fetched = Date.parse(value?.fetchedAt || value?.updatedAt || '');
-    if (!value || typeof value.rate !== 'string' || rateUnits(value.rate) === null || typeof value.source !== 'string' || ![OKX_RATE_PAGE, COINGATE_RATE_URL].includes(value.sourceUrl) || !Number.isFinite(fetched) || fetched > Date.now() + 60000 || Date.now() - fetched > RATE_STORAGE_MAX_AGE) return null;
+    if (!validRate(value) || value.kind !== 'reference') return null;
     return value;
   } catch { return null; }
 }
@@ -48,7 +56,7 @@ export default function QuickPriceApp({ user }: Props) {
   const [rateLoading, setRateLoading] = useState(true);
   const [rateMessage, setRateMessage] = useState('正在获取最新汇率…');
   const [rateSource, setRateSource] = useState('手动设置');
-  const [rateSourceUrl, setRateSourceUrl] = useState(OKX_RATE_PAGE);
+  const [rateSourceUrl, setRateSourceUrl] = useState(KUCOIN_RATE_URL);
   const exchangeRateRef = useRef('');
   const rateRequest = useRef(0);
   const rateAbort = useRef<AbortController | null>(null);
@@ -62,7 +70,7 @@ export default function QuickPriceApp({ user }: Props) {
     try {
       const response = await fetch(force ? '/api/exchange-rate?refresh=1' : '/api/exchange-rate', { cache: 'no-store', signal: controller.signal });
       const data = await response.json() as RateResponse;
-      if (!response.ok || typeof data.rate !== 'string' || rateUnits(data.rate) === null || !Number.isFinite(Date.parse(data.updatedAt)) || ![OKX_RATE_PAGE, COINGATE_RATE_URL].includes(data.sourceUrl)) throw new Error(data.error || '服务器汇率不可用');
+      if (!response.ok || !validRate(data)) throw new Error(data.error || '服务器汇率不可用');
       if (request !== rateRequest.current) return;
       exchangeRateRef.current = data.rate; setExchangeRate(data.rate); setRateError(false);
       const source = `${data.source} · ${new Date(data.fetchedAt || data.updatedAt).toLocaleString('zh-CN', { hour12: false })}${data.kind === 'stale' ? ' · 缓存汇率' : ''}`;

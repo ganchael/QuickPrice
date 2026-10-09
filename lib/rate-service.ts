@@ -1,4 +1,4 @@
-import { COINGATE_RATE_URL, OKX_RATE_PAGE, parseCoinGateRate, parseOkxRate, type RateQuote } from './live-rate.ts';
+import { KUCOIN_RATE_URL, OKX_RATE_PAGE, parseKuCoinRate, parseOkxRate, type RateQuote } from './live-rate.ts';
 import { rateUnits } from './quote-export.ts';
 
 const CACHE_TTL = 60_000;
@@ -6,7 +6,7 @@ const MAX_STALE_AGE = 24 * 60 * 60 * 1000;
 const STORAGE_TIMEOUT = 150;
 const SOURCES = new Map([
   [OKX_RATE_PAGE, '欧易 OKX · 获取于'],
-  [COINGATE_RATE_URL, 'CoinGate 支付换算参考 · 获取于'],
+  [KUCOIN_RATE_URL, 'KuCoin 市场参考 · 获取于'],
 ]);
 type Options = {
   fetcher?: typeof fetch;
@@ -67,14 +67,13 @@ export function createRateService({ fetcher = fetch, now = Date.now, readStored,
     return parseOkxRate(await response.text(), now());
   }, 2500);
 
-  const fetchCoinGate = () => deadline(async signal => {
-    const response = await fetcher(COINGATE_RATE_URL, { signal, cache: 'no-store',
+  const fetchKuCoin = () => deadline(async signal => {
+    const response = await fetcher(KUCOIN_RATE_URL, { signal, cache: 'no-store',
       headers: { Accept: 'application/json', 'User-Agent': 'QuickPrice/1.0' } });
-    if (!response.ok) throw new Error(`CoinGate 换算服务返回 ${response.status}`);
+    if (!response.ok) throw new Error(`KuCoin 行情服务返回 ${response.status}`);
     const age = Number(response.headers.get('age') ?? 0);
-    if (!Number.isFinite(age) || age < 0 || age > 900) throw new Error('CoinGate 换算缓存已过期');
-    return { ...parseCoinGateRate(await response.json(), now()),
-      warning: '欧易暂不可用，当前使用 CoinGate 支付换算参考，可能与交易所成交价略有差异。' };
+    if (!Number.isFinite(age) || age < 0 || age > 900) throw new Error('KuCoin 行情缓存已过期');
+    return parseKuCoinRate(await response.json(), now());
   }, 4000);
 
   async function loadStored() {
@@ -91,8 +90,8 @@ export function createRateService({ fetcher = fetch, now = Date.now, readStored,
     if (!forceRequested && previous && now() - Date.parse(previous.fetchedAt) < CACHE_TTL) return previous;
     let quote: RateQuote;
     try {
-      try { quote = await fetchOkx(); }
-      catch { quote = await fetchCoinGate(); }
+      try { quote = await fetchKuCoin(); }
+      catch { quote = { ...await fetchOkx(), warning: 'KuCoin 暂时不可用，当前使用欧易 OKX USDT/CNY 市场参考。' }; }
     } catch {
       const fallback = storedQuote(lastGood, now());
       if (fallback) return { ...fallback, kind: 'stale',

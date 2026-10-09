@@ -1,7 +1,7 @@
 import { rateUnits } from './quote-export.ts';
 
 export const OKX_RATE_PAGE = 'https://www.okx.com/zh-hans/convert/usdt-to-cny';
-export const COINGATE_RATE_URL = 'https://api.coingate.com/v2/rates/merchant/USDT/CNY';
+export const KUCOIN_RATE_URL = 'https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT';
 export type RateQuote = {
   rate: string;
   updatedAt: string;
@@ -13,14 +13,14 @@ export type RateQuote = {
 };
 
 function formatRate(value: unknown) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value >= 1000000) throw new Error('欧易报价无效');
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value >= 1000000) throw new Error('USDT/CNY 报价无效');
   const rate = value.toFixed(6);
-  if (rateUnits(rate) === null) throw new Error('欧易汇率无效');
+  if (rateUnits(rate) === null) throw new Error('USDT/CNY 汇率无效');
   return rate;
 }
 
 function result(rate: string, now: number, source: string, sourceUrl = OKX_RATE_PAGE): RateQuote {
-  // The page supplies no market timestamp. Label this as retrieval time, never quote time.
+  // These sources supply no market timestamp. Label retrieval time, never quote time.
   return { rate, updatedAt: new Date(now).toISOString(), fetchedAt: new Date(now).toISOString(), source, kind: 'reference', sourceUrl };
 }
 
@@ -34,9 +34,12 @@ export function parseOkxRate(html: string, now = Date.now(), sourceUrl = OKX_RAT
   return result(formatRate(value), now, '欧易 OKX · 获取于', sourceUrl);
 }
 
-export function parseCoinGateRate(value: unknown, now = Date.now()): RateQuote {
-  // This endpoint returns a scalar, not an order-book price or a USD/CNY quote.
+export function parseKuCoinRate(payload: unknown, now = Date.now()): RateQuote {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('KuCoin USDT/CNY 行情无效');
+  const response = payload as { code?: unknown; data?: unknown };
+  if (response.code !== '200000' || !response.data || typeof response.data !== 'object' || Array.isArray(response.data)) throw new Error('KuCoin USDT/CNY 行情无效');
+  let value = (response.data as Record<string, unknown>).USDT;
   if (typeof value === 'string' && /^\d{1,6}(?:\.\d+)?$/.test(value)) value = Number(value);
-  if (typeof value !== 'number') throw new Error('CoinGate USDT/CNY 换算参考无效');
-  return result(formatRate(value), now, 'CoinGate 支付换算参考 · 获取于', COINGATE_RATE_URL);
+  if (typeof value !== 'number') throw new Error('KuCoin USDT/CNY 行情缺少有效 USDT 价格');
+  return result(formatRate(value), now, 'KuCoin 市场参考 · 获取于', KUCOIN_RATE_URL);
 }
