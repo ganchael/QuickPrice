@@ -16,7 +16,7 @@ import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, iss
 
 type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
 type Props = { user: { userId: string; displayName: string } };
-type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; warning?: string; error?: string };
+type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; delivery?: 'scheduled'; warning?: string; error?: string };
 const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-market-rate:v2';
 const RATE_STORAGE_MAX_AGE = 24 * 60 * 60 * 1000;
 function validRate(value: RateResponse | null): value is RateResponse {
@@ -38,6 +38,9 @@ function storedRate(): RateResponse | null {
 function rememberRate(value: RateResponse) {
   try { localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(value)); } catch { /* Private browsing may deny storage. */ }
 }
+function rateDescription(value: RateResponse, cached = value.kind === 'stale') {
+  return `${value.source} · ${new Date(value.fetchedAt || value.updatedAt).toLocaleString('zh-CN', { hour12: false })}${cached ? ' · 缓存汇率' : ''}${value.delivery === 'scheduled' ? ' · 约每 5 分钟更新，可能延迟' : ''}`;
+}
 export default function QuickPriceApp({ user }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
@@ -54,10 +57,12 @@ export default function QuickPriceApp({ user }: Props) {
   const [exchangeRate, setExchangeRate] = useState('');
   const [rateError, setRateError] = useState(false);
   const [rateLoading, setRateLoading] = useState(true);
-  const [rateMessage, setRateMessage] = useState('正在获取最新汇率…');
+  const [rateMessage, setRateMessage] = useState('正在读取最近可用汇率…');
   const [rateSource, setRateSource] = useState('手动设置');
   const [rateSourceUrl, setRateSourceUrl] = useState(KUCOIN_RATE_URL);
+  const [rateScheduled, setRateScheduled] = useState(false);
   const exchangeRateRef = useRef('');
+  const rateQuoteRef = useRef<RateResponse | null>(null);
   const rateRequest = useRef(0);
   const rateAbort = useRef<AbortController | null>(null);
   const refreshRate = useCallback(async (force = false) => {
@@ -66,14 +71,15 @@ export default function QuickPriceApp({ user }: Props) {
     const controller = new AbortController();
     rateAbort.current = controller;
     const timeout = setTimeout(() => controller.abort(), 9000);
-    setRateLoading(true); setRateMessage('正在获取最新汇率…');
+    setRateLoading(true); setRateMessage('正在读取最近可用汇率…');
     try {
       const response = await fetch(force ? '/api/exchange-rate?refresh=1' : '/api/exchange-rate', { cache: 'no-store', signal: controller.signal });
       const data = await response.json() as RateResponse;
       if (!response.ok || !validRate(data)) throw new Error(data.error || '服务器汇率不可用');
       if (request !== rateRequest.current) return;
       exchangeRateRef.current = data.rate; setExchangeRate(data.rate); setRateError(false);
-      const source = `${data.source} · ${new Date(data.fetchedAt || data.updatedAt).toLocaleString('zh-CN', { hour12: false })}${data.kind === 'stale' ? ' · 缓存汇率' : ''}`;
+      rateQuoteRef.current = data; setRateScheduled(data.delivery === 'scheduled');
+      const source = rateDescription(data);
       setRateSourceUrl(data.sourceUrl);
       setRateSource(source); setRateMessage(`${source}${data.warning ? ` · ${data.warning}` : ''}`);
       if (data.kind !== 'stale') rememberRate(data);
@@ -82,10 +88,13 @@ export default function QuickPriceApp({ user }: Props) {
         const previous = storedRate();
         if (rateUnits(exchangeRateRef.current) === null && previous) {
           exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate);
-          setRateSource(`${previous.source} · ${new Date(previous.fetchedAt || previous.updatedAt).toLocaleString('zh-CN', { hour12: false })} · 缓存汇率`);
+          rateQuoteRef.current = previous; setRateScheduled(previous.delivery === 'scheduled');
+          setRateSource(rateDescription(previous, true));
           setRateSourceUrl(previous.sourceUrl);
         }
-        setRateMessage(rateUnits(exchangeRateRef.current) !== null ? '最新汇率暂时不可用，已保留当前汇率；点击“最新”重试。' : '最新汇率暂时不可用，请手动填写或点击“最新”重试。');
+        const previousQuote = rateQuoteRef.current;
+        if (previousQuote) setRateSource(rateDescription(previousQuote, true));
+        setRateMessage(rateUnits(exchangeRateRef.current) !== null ? `${previousQuote ? `${rateDescription(previousQuote, true)} · ` : ''}暂时无法读取新汇率，已保留当前汇率；点击“最新”重试。` : '暂时无法读取汇率，请手动填写或点击“最新”重试。');
       }
     } finally {
       clearTimeout(timeout);
@@ -95,7 +104,7 @@ export default function QuickPriceApp({ user }: Props) {
   useEffect(() => {
     const previous = storedRate();
     if (previous) {
-      exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate); setRateSource(`${previous.source} · ${new Date(previous.fetchedAt || previous.updatedAt).toLocaleString('zh-CN', { hour12: false })} · 缓存汇率`); setRateSourceUrl(previous.sourceUrl); setRateMessage('已使用上次成功汇率，正在刷新最新行情…');
+      exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate); rateQuoteRef.current = previous; setRateScheduled(previous.delivery === 'scheduled'); setRateSource(rateDescription(previous, true)); setRateSourceUrl(previous.sourceUrl); setRateMessage(`${rateDescription(previous, true)} · 正在读取最近发布的行情…`);
     }
     void refreshRate();
     return () => { rateRequest.current++; rateAbort.current?.abort(); };
@@ -104,7 +113,8 @@ export default function QuickPriceApp({ user }: Props) {
     rateRequest.current++;
     rateAbort.current?.abort();
     exchangeRateRef.current = value; setExchangeRate(value); setRateError(false);
-    setRateLoading(false); setRateSource('手动设置'); setRateMessage('手动汇率 · 点击“最新”可恢复行情');
+    rateQuoteRef.current = null;
+    setRateLoading(false); setRateSource('手动设置'); setRateMessage(`手动汇率 · 点击“最新”可恢复${rateScheduled ? '最近发布的欧易行情' : '行情'}`);
   };
   const [inputError, setInputError] = useState('');
   const [isExample, setIsExample] = useState(false);
@@ -250,7 +260,7 @@ export default function QuickPriceApp({ user }: Props) {
             <div className="details-footer"><span><span className={`tiny-dot ${summary.pending ? 'pending' : ''}`} />{summary.pending ? `${summary.pending} 项待完善，暂未计入合计` : lines.length ? '所有项目已计价' : '等待添加项目'}</span><button className="text-button" onClick={() => { setMode('manual'); document.querySelector('.input-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Plus size={14} />添加项目</button></div>
           </section>
           <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{summary.pending ? '已确认金额' : '合计金额'}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · 单价 × 数量</span><span>{summary.pending ? '完善全部项目后可导出' : '核对后即可导出报价'}</span></div></section>
-          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label="获取最新 USDT 汇率" aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
+          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label={rateScheduled ? "重新读取最近发布的欧易 USDT 汇率" : "重新读取最近可用的 USDT 汇率"} title={rateScheduled ? "重新读取最近发布的欧易汇率；约每 5 分钟更新，可能延迟，不会立即触发取数。" : "重新读取最近可用的 USDT 汇率"} aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
           <p id="rate-hint" className="rate-status" role="status">{rateError || (!!exchangeRate && rateUnits(exchangeRate) === null) ? '请输入大于 0 的汇率，最多 6 位整数、6 位小数。' : rateMessage} · {summary.safe && usdtAmount(summary.cents, exchangeRate) !== null ? `折合 ${usdtAmount(summary.cents, exchangeRate)} USDT` : '待换算'}<a href={rateSourceUrl === KUCOIN_RATE_URL ? KUCOIN_RATE_PAGE : OKX_RATE_PAGE} title={rateSourceUrl === KUCOIN_RATE_URL ? 'KuCoin USDT 行情页（官网默认美元计价）' : '欧易 USDT/CNY 换算页'} target="_blank" rel="noopener noreferrer">行情来源</a></p>
           <p className="session-note">商品库在云端保存；当前报价为临时清单，离开前请导出。</p>
         </section>

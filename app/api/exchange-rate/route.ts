@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
 let cacheTable: Promise<unknown> | undefined;
 // Keep the former payment conversion cache separate from market references.
-const CACHE_KEY = 'USDT-CNY:market-v2';
+const CACHE_KEY = 'USDT-CNY:okx-scheduled-v3';
 
 async function cacheDatabase() {
   const db = getCatalogDatabase();
@@ -19,6 +19,7 @@ async function cacheDatabase() {
 }
 
 const rates = createRateService({
+  scheduled: true,
   readStored: async () => {
     const db = await cacheDatabase();
     const row = await db.prepare('SELECT quote_json FROM exchange_rate_cache WHERE cache_key = ?').bind(CACHE_KEY).first<{ quote_json: string }>();

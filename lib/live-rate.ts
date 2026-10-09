@@ -3,6 +3,8 @@ import { rateUnits } from './quote-export.ts';
 export const OKX_RATE_PAGE = 'https://www.okx.com/zh-hans/convert/usdt-to-cny';
 export const KUCOIN_RATE_URL = 'https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT';
 export const KUCOIN_RATE_PAGE = 'https://www.kucoin.com/zh-hant/price/USDT';
+export const OKX_FEED_URL = 'https://raw.githubusercontent.com/ganchael/QuickPrice/rate-feed/okx-usdt-cny.json';
+export const OKX_FEED_API_URL = 'https://api.github.com/repos/ganchael/QuickPrice/contents/okx-usdt-cny.json?ref=rate-feed';
 export type RateQuote = {
   rate: string;
   updatedAt: string;
@@ -10,6 +12,7 @@ export type RateQuote = {
   source: string;
   kind: 'reference' | 'stale';
   sourceUrl: string;
+  delivery?: 'scheduled';
   warning?: string;
 };
 

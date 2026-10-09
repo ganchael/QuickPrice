@@ -21,7 +21,7 @@
 - `catalogs`：用户商品 JSON、版本号、更新时间。
 - `auth_sessions`：会话令牌的哈希及到期时间。
 - `login_attempts`：登录限流记录。
-- `exchange_rate_cache`：`USDT-CNY:market-v2` 的成功市场参考汇率、来源及获取时间；用于服务重启后的恢复。旧 `USDT-CNY` 记录不再读取。
+- `exchange_rate_cache`：`USDT-CNY:okx-scheduled-v3` 的成功市场参考汇率、来源及获取时间；用于服务重启后的恢复。旧 `USDT-CNY` 和 `USDT-CNY:market-v2` 记录不再读取。
 
 本地开发使用 Vite 配置中的本地 D1 绑定。阿里云部署复用 Worker 构建，通过 Wrangler/Miniflare 的本地 D1 SQLite 存储运行；数据在 `/var/lib/quickprice/v3/d1/`，不依赖原 Sites。此方式沿用了开发运行器，需固定依赖版本；不是云端 D1 托管服务。原 Sites 使用平台提供的真实绑定，配置文件中的占位数据库 ID 不是数据库地址。
 
@@ -99,18 +99,32 @@ curl -I http://127.0.0.1/login
 
 浏览器只调用同源 `/api/exchange-rate`；不会直接请求交易所或页面读取代理。所有外部请求由上海服务器处理，客户端无需连接外部行情源。接口需要有效登录，响应使用 `private, no-store`，未经登录返回 401。
 
-服务端依次尝试：
+用户已选择 GitHub 定时取数。`.github/workflows/okx-rate.yml` 使用 Ubuntu 托管 runner，每小时的 2、7、12……57 分钟读取欧易换算网页使用的公开 JSON：
 
-1. [KuCoin EU USDT/CNY 接口](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT)：固定法币 CNY、币种 USDT，严格校验业务码 `200000` 和 `data.USDT`，总超时 4 秒。接口约定见 [KuCoin Get Fiat Price](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-fiat-price)。采用供应商返回的 USDT 价格，没有将 USDT 恒定视为 1 美元，也没有使用硬编码汇率。
-2. [欧易 OKX USDT/CNY 页面](https://www.okx.com/zh-hans/convert/usdt-to-cny)：KuCoin 超时、拦截或数据无效时启用，解析 `appState` 的币对与 `convertInfo.rate`；总超时 2.5 秒。
+```
+https://www.okx.com/priapi/v3/growth/convert/detail?baseCurrency=USDT&quoteCurrency=CNY
+```
 
-两个上游串行预算为 6.5 秒，持久缓存读写各最多等待 150 毫秒；前端等待本站响应最多 9 秒。页面显示实际来源及获取时间：上游未提供行情更新时间，不能把请求时间当成成交时间。显示 6 位小数取自上游原始报价，不通过添加随机数字制造波动；点击“最新”会重新请求，但市场参考本身可能保持不变。参考价与 P2P 商家买卖成交价并不相同。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率。
+`scripts/fetch-okx-rate.mjs` 严格校验业务码、USDT/CNY 币对、原始价格、上游缓存时间和响应大小；每次最多等待 8 秒，最多尝试 3 次，总预算 27 秒。成功后仅更新独立 `rate-feed` 分支的 `okx-usdt-cny.json`，不修改 main、商品数据或机密。失败时任务报告失败，旧报价文件和获取时间保持不变。JSON 保留 `rawRate` 原始精度，展示与计算使用舍入后的 6 位小数 `rate`；获取时间不是市场成交时间。该官网内部接口可能变化，失败必须保留明确的缓存状态，不能改用 USD/CNY 或假设 USDT=USD。
+
+上海主站依次读取 GitHub raw 文件与 GitHub Contents API 的 raw 响应；固定仓库、文件和分支，每个通道最多等待 1.8 秒，严格校验来源、币对、价格精度和获取时间。两个域名网络路径不同，读取同一份欧易数据；不会把主站读取时间替换成欧易实际获取时间。API 后备使用匿名访问，有 GitHub 限流，因此优先使用 raw 文件。欧易报价超过 15 分钟未更新时标为 `kind: stale`，最多使用 24 小时内的值。读取失败时优先保留现有欧易成功报价；只有没有可用欧易报价时，才请求 [KuCoin EU USDT/CNY](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT) 作为明确标注的后备，最多等待 4 秒。所有渠道失败且没有缓存时返回 503，支持手动填写。
+
+GitHub 计划任务可能排队延迟，不能保证每 5 分钟准时执行。页面显示“约每 5 分钟更新，可能延迟”及真实获取时间。持久缓存读写各最多等待 150 毫秒，前端等待本站响应最多 9 秒。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率与实际来源。参考价与 P2P 商家买卖成交价并不相同。
+
+手动触发和排查：
+
+```
+gh workflow run okx-rate.yml --ref main
+gh run list --workflow okx-rate.yml --limit 5
+```
+
+查看最近成功任务和 `rate-feed` 文件的 `fetchedAt`；任务失败时检查公开接口结构或可达性。任务需要仅限该 job 的 `contents: write`，Action 固定为官方版本 SHA；不需要上传服务器密码或创建额外个人 Token。GitHub 对长期无活动的公开仓库可能停用计划任务，届时需要重新启用工作流。
 
 “行情来源”在新标签页打开对应供应商的前端页面：KuCoin 使用 [中文 USDT 行情页](https://www.kucoin.com/zh-hant/price/USDT)，OKX 使用上述 USDT/CNY 换算页。KuCoin 官网默认美元计价，`/converter/USDT-CNY` 目前返回 404，价格页 `?currency=CNY` 参数实测不会切换计价货币，因此不使用这些地址冒充人民币页面。接口地址仍用于取数和缓存校验，展示链接单独映射到网页，不影响汇率数值。
 
-成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存。并发刷新合并为一次上游请求，手动修改会取消当前页面请求，迟到结果不会覆盖手动值。
+成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求，手动修改会取消当前页面请求，迟到结果不会覆盖手动值。
 
-成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:market-v2`，浏览器键升级为 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源，旧支付换算缓存不会再次显示。服务重启会从 D1 读取成功值，一分钟内的值可直接作为缓存；强制刷新仍访问上游。全部来源失败时，24 小时内最近成功值返回 `kind: stale`，保留原始来源、获取时间并明确显示缓存提示。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
+成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:okx-scheduled-v3`，浏览器继续使用 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源。服务重启会从 D1 读取成功值；`delivery: scheduled` 保留定时抓取来源及时间，延迟或失败时明确标注缓存。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
 
 2026-10-03 曾使用 CoinGate 国内访问后备；2026-10-10 核实它的原始响应仅为 `6.7`，显示补齐为 `6.700000`，故停用。替代源在上海服务器无代理直连测试 HTTP 200，原始 USDT/CNY 为 `6.6962679300000000`，USDT/USD 为 `0.9991000000000000`。数值仅为当次验收记录，不是默认值；证书配置见上面的系统 CA 部分。
 

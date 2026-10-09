@@ -41,3 +41,14 @@ test('CSV includes numeric USDT unit prices, amounts, total, rate and provenance
   assert.equal(rows[4][1], 'CoinGecko · test time');
   assert.throws(() => quoteCsv(lines, productsSeed, '0'), /有效汇率/);
 });
+test('copied and exported quotes retain scheduled OKX retrieval time without changing conversions', () => {
+  const lines = parseQuote('GND10 × 2', productsSeed);
+  const source = '欧易 OKX · 获取于 · 2026/10/10 10:05:00 · 缓存汇率 · 约每 5 分钟更新，可能延迟';
+  const copied = quoteText(lines, productsSeed, '6.75', source);
+  assert.match(copied, /折合合计：22.22 USDT/);
+  assert.ok(copied.includes(source));
+  const book = read(quoteCsv(lines, productsSeed, '6.75', source), { type: 'string' });
+  const rows = utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1 });
+  assert.equal(rows[1][12], 22.22);
+  assert.equal(rows[3][1], source);
+});
