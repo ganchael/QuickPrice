@@ -2,6 +2,7 @@ import { rateUnits } from './quote-export.ts';
 
 export const OKX_RATE_PAGE = 'https://www.okx.com/zh-hans/convert/usdt-to-cny';
 export const KUCOIN_RATE_URL = 'https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT';
+export const KUCOIN_RATE_PAGE = 'https://www.kucoin.com/zh-hant/price/USDT';
 export type RateQuote = {
   rate: string;
   updatedAt: string;
