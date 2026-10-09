@@ -1,0 +1,66 @@
+name: Refresh OKX USDT CNY feed
+
+on:
+  schedule:
+    # Every five minutes; GitHub may delay scheduled runs.
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: okx-usdt-cny-rate-feed
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'ganchael/QuickPrice'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch and validate the actual OKX USDT CNY quote
+        run: node scripts/fetch-okx-rate.mjs "$RUNNER_TEMP/okx-usdt-cny.json"
+      - name: Publish only the rate-feed branch
+        env:
+          RATE_FEED_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_dir="$(mktemp -d "$RUNNER_TEMP/okx-feed-publish.XXXXXX")"
+          trap 'rm -rf "$publish_dir"' EXIT
+          auth="$(printf 'x-access-token:%s' "$RATE_FEED_TOKEN" | base64 | tr -d '\n')"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0='http.https://github.com/.extraheader'
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+          export GIT_TERMINAL_PROMPT=0
+          git init --quiet "$publish_dir"
+          git -C "$publish_dir" config user.name 'github-actions[bot]'
+          git -C "$publish_dir" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$publish_dir" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if git -C "$publish_dir" ls-remote --exit-code --heads origin refs/heads/rate-feed >/dev/null; then
+            git -C "$publish_dir" fetch --quiet --depth=1 origin refs/heads/rate-feed
+            git -C "$publish_dir" checkout --quiet -B rate-feed FETCH_HEAD
+          else
+            remote_status=$?
+            if [ "$remote_status" -ne 2 ]; then
+              echo 'Cannot check rate-feed branch; publication aborted.' >&2
+              exit "$remote_status"
+            fi
+            git -C "$publish_dir" checkout --quiet --orphan rate-feed
+          fi
+          cp "$RUNNER_TEMP/okx-usdt-cny.json" "$publish_dir/okx-usdt-cny.json"
+          git -C "$publish_dir" add -- okx-usdt-cny.json
+          if git -C "$publish_dir" diff --cached --quiet; then
+            echo 'Identical feed; no commit needed.'
+            exit 0
+          fi
+          git -C "$publish_dir" commit --quiet -m 'Update OKX USDT CNY quote'
+          git -C "$publish_dir" push --quiet origin HEAD:refs/heads/rate-feed
