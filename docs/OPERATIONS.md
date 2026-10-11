@@ -152,7 +152,7 @@ cat /var/lib/quickprice-rate-watchdog/status.json
 systemctl start quickprice-rate-watchdog.service
 ```
 
-检查 `quoteAgeSeconds`、`lastSuccessfulRequestAt`、真实 `quoteFetchedAt` 与 GitHub push 任务是否成功。触发任务成功不等于取得报价；应再次核对 `rate-feed/okx-usdt-cny.json` 的真实 `fetchedAt`。不可用时保留原报价时间并提示缓存或明确来源的后备，不能通过更新时间伪装新鲜度。
+检查 `ageSeconds`、`triggerRequestedAt`、真实 `fetchedAt` 与 GitHub push 任务是否成功。触发任务成功不等于取得报价；应再次核对 `rate-feed/okx-usdt-cny.json` 的真实 `fetchedAt`。不可用时保留原报价时间并提示缓存或明确来源的后备，不能通过更新时间伪装新鲜度。
 
 ## 服务器每日备份
 
@@ -165,3 +165,12 @@ systemctl start quickprice-rate-watchdog.service
 ## 备份范围
 
 Git 历史保留此前源码变更及历史商品快照。仓库还保存阿里云部署配置、历史构建恢复包与兼容脚本；运行密钥、生产数据库、数据库备份和本地日志未纳入版本库。云端后续编辑不会自动写回 GitHub，需另行导出备份。
+
+### 2026-10-12 主动刷新验收
+
+- systemd 239 已验证检查 service/timer 指令兼容；timer 每 2 分钟运行、开机启用。
+- 两次服务器普通 push 触发工作流均成功：真实获取时间为上海时间 01:13:32、01:19:38，间隔约 6 分钟；取数任务分别约 13 秒和 12 秒完成。时间仅为当次验收，不是固定报价或未来执行保证。
+- 77 项测试通过（2 项需要独立本地集成环境的测试跳过）、类型检查和构建通过；手机 375×667 的自动轮询、手动保护、点击最新恢复、10 分钟过期提示和迟到响应保护通过。手机和桌面 HTTP 复制、CSV USDT 换算验收通过。
+- 发布前后商品 301 条、版本 8，排序后的商品 JSON SHA-256 均为 `4131bd0275f005d961034455a113a2386aca3dcba5f7c5c7b9b931867771d235`。
+- 旧构建备份：`/var/backups/quickprice/okx-feed-20261011T171342Z`；数据库另由现有备份 service 生成私有备份。专用私钥 0600、目录 0700，已验证网站用户不能读取。
+- 当前聊天另设每 10 分钟一次的 Codex 巡检，健康状态保持安静，只报告持续异常或恢复。此本机巡检依赖电脑与应用运行；服务器的 2 分钟检查独立运行。
