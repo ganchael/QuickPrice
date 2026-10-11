@@ -9,3 +9,5 @@
 `quickprice-ca.conf` 是应用服务的证书配置，安装到 `/etc/systemd/system/quickprice.service.d/ca.conf` 后执行 `systemctl daemon-reload`、`systemctl restart quickprice`。它使 workerd 使用阿里云系统完整 CA bundle，保持 HTTPS 证书校验开启。其他发行版需要改为其实际 CA bundle 路径。
 
 恢复或发布前先备份现有数据库。部署时不要上传 `.dev.vars`、`/etc/quickprice/runtime.env`、`/var/lib/quickprice` 或 `/var/backups/quickprice` 到 GitHub；也不要用仓库中的历史商品快照覆盖在线商品库。详细步骤见 `docs/OPERATIONS.md`。
+
+`rate-watchdog.py`、`quickprice-rate-watchdog.service` 和 `.timer` 提供欧易报价主动检查：服务器每 2 分钟检查 GitHub feed，报价达到 4 分钟时通过专用请求分支触发 GitHub runner；达到 10 分钟标记过期。启用前必须由用户明确批准创建专用仓库写入 deploy key，私钥只在服务器 root 目录，不能上传 GitHub。目录权限、固定 SSH 主机校验和故障排查见 `docs/OPERATIONS.md`。

@@ -19,6 +19,7 @@ type Props = { user: { userId: string; displayName: string } };
 type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; delivery?: 'scheduled'; warning?: string; error?: string };
 const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-market-rate:v2';
 const RATE_STORAGE_MAX_AGE = 24 * 60 * 60 * 1000;
+const RATE_SCHEDULED_STALE_AGE = 10 * 60 * 1000;
 function validRate(value: RateResponse | null): value is RateResponse {
   const fetched = Date.parse(value?.fetchedAt || '');
   const updated = Date.parse(value?.updatedAt || '');
@@ -38,8 +39,14 @@ function storedRate(): RateResponse | null {
 function rememberRate(value: RateResponse) {
   try { localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(value)); } catch { /* Private browsing may deny storage. */ }
 }
-function rateDescription(value: RateResponse, cached = value.kind === 'stale') {
-  return `${value.source} · ${new Date(value.fetchedAt || value.updatedAt).toLocaleString('zh-CN', { hour12: false })}${cached ? ' · 缓存汇率' : ''}${value.delivery === 'scheduled' ? ' · 约每 5 分钟更新，可能延迟' : ''}`;
+function scheduledRateOld(value: RateResponse) {
+  return value.delivery === 'scheduled' && Date.now() - Date.parse(value.fetchedAt || value.updatedAt) >= RATE_SCHEDULED_STALE_AGE;
+}
+function rateWarning(value: RateResponse) {
+  return scheduledRateOld(value) ? '欧易报价已超过 10 分钟未更新，当前为缓存汇率；可点击“最新”重试或手动修改。' : value.warning;
+}
+function rateDescription(value: RateResponse, cached = value.kind === 'stale' || scheduledRateOld(value)) {
+  return `${value.source} · ${new Date(value.fetchedAt || value.updatedAt).toLocaleString('zh-CN', { hour12: false })}${cached ? ' · 缓存汇率' : ''}${value.delivery === 'scheduled' ? ' · 服务器每 2 分钟检查；超过 10 分钟未更新会提示' : ''}`;
 }
 export default function QuickPriceApp({ user }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,16 +69,19 @@ export default function QuickPriceApp({ user }: Props) {
   const [rateSourceUrl, setRateSourceUrl] = useState(KUCOIN_RATE_URL);
   const [rateScheduled, setRateScheduled] = useState(false);
   const exchangeRateRef = useRef('');
+  const manualRate = useRef(false);
   const rateQuoteRef = useRef<RateResponse | null>(null);
   const rateRequest = useRef(0);
   const rateAbort = useRef<AbortController | null>(null);
-  const refreshRate = useCallback(async (force = false) => {
+  const refreshRate = useCallback(async (force = false, background = false) => {
+    if (background && (manualRate.current || document.visibilityState !== 'visible' || rateAbort.current || document.activeElement?.id === 'usdt-rate')) return;
+    if (!background) manualRate.current = false;
     const request = ++rateRequest.current;
     rateAbort.current?.abort();
     const controller = new AbortController();
     rateAbort.current = controller;
     const timeout = setTimeout(() => controller.abort(), 9000);
-    setRateLoading(true); setRateMessage('正在读取最近可用汇率…');
+    if (!background) { setRateLoading(true); setRateMessage('正在读取最近可用汇率…'); }
     try {
       const response = await fetch(force ? '/api/exchange-rate?refresh=1' : '/api/exchange-rate', { cache: 'no-store', signal: controller.signal });
       const data = await response.json() as RateResponse;
@@ -81,8 +91,9 @@ export default function QuickPriceApp({ user }: Props) {
       rateQuoteRef.current = data; setRateScheduled(data.delivery === 'scheduled');
       const source = rateDescription(data);
       setRateSourceUrl(data.sourceUrl);
-      setRateSource(source); setRateMessage(`${source}${data.warning ? ` · ${data.warning}` : ''}`);
-      if (data.kind !== 'stale') rememberRate(data);
+      const warning = rateWarning(data);
+      setRateSource(source); setRateMessage(`${source}${warning ? ` · ${warning}` : ''}`);
+      if (data.kind !== 'stale' && !scheduledRateOld(data)) rememberRate(data);
     } catch {
       if (request === rateRequest.current) {
         const previous = storedRate();
@@ -94,11 +105,12 @@ export default function QuickPriceApp({ user }: Props) {
         }
         const previousQuote = rateQuoteRef.current;
         if (previousQuote) setRateSource(rateDescription(previousQuote, true));
-        setRateMessage(rateUnits(exchangeRateRef.current) !== null ? `${previousQuote ? `${rateDescription(previousQuote, true)} · ` : ''}暂时无法读取新汇率，已保留当前汇率；点击“最新”重试。` : '暂时无法读取汇率，请手动填写或点击“最新”重试。');
+        const warning = previousQuote ? rateWarning(previousQuote) : undefined;
+        setRateMessage(rateUnits(exchangeRateRef.current) !== null ? `${previousQuote ? `${rateDescription(previousQuote, true)} · ` : ''}${warning ? `${warning} · ` : ''}暂时无法读取新汇率，已保留当前汇率；点击“最新”重试。` : '暂时无法读取汇率，请手动填写或点击“最新”重试。');
       }
     } finally {
       clearTimeout(timeout);
-      if (request === rateRequest.current) setRateLoading(false);
+      if (request === rateRequest.current) { rateAbort.current = null; setRateLoading(false); }
     }
   }, []);
   useEffect(() => {
@@ -106,12 +118,44 @@ export default function QuickPriceApp({ user }: Props) {
     if (previous) {
       exchangeRateRef.current = previous.rate; setExchangeRate(previous.rate); rateQuoteRef.current = previous; setRateScheduled(previous.delivery === 'scheduled'); setRateSource(rateDescription(previous, true)); setRateSourceUrl(previous.sourceUrl); setRateMessage(`${rateDescription(previous, true)} · 正在读取最近发布的行情…`);
     }
-    void refreshRate();
-    return () => { rateRequest.current++; rateAbort.current?.abort(); };
+    const pollRate = () => {
+      if (document.visibilityState !== 'visible' || manualRate.current) return;
+      const current = rateQuoteRef.current;
+      if (current && scheduledRateOld(current)) {
+        const source = rateDescription(current, true);
+        setRateSource(source); setRateMessage(`${source} · ${rateWarning(current)}`);
+      }
+      void refreshRate(false, true);
+    };
+    if (document.visibilityState === 'visible') void refreshRate();
+    else { setRateLoading(false); if (!previous) setRateMessage('返回页面后将读取最近可用汇率。'); }
+    const timer = window.setInterval(pollRate, 60_000);
+    document.addEventListener('visibilitychange', pollRate);
+    return () => {
+      window.clearInterval(timer); document.removeEventListener('visibilitychange', pollRate);
+      rateRequest.current++; rateAbort.current?.abort(); rateAbort.current = null;
+    };
   }, [refreshRate]);
+  useEffect(() => {
+    const current = rateQuoteRef.current;
+    if (manualRate.current || current?.delivery !== 'scheduled') return;
+    const remaining = Date.parse(current.fetchedAt || current.updatedAt) + RATE_SCHEDULED_STALE_AGE - Date.now();
+    if (remaining <= 0) return;
+    // Flag the age boundary even when it falls between the one-minute polls.
+    const timer = window.setTimeout(() => {
+      const value = rateQuoteRef.current;
+      if (document.visibilityState !== 'visible' || manualRate.current || !value || !scheduledRateOld(value)) return;
+      const source = rateDescription(value, true);
+      setRateSource(source); setRateMessage(`${source} · ${rateWarning(value)}`);
+      void refreshRate(false, true);
+    }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [rateSource, refreshRate]);
   const updateRate = (value: string) => {
+    manualRate.current = true;
     rateRequest.current++;
     rateAbort.current?.abort();
+    rateAbort.current = null;
     exchangeRateRef.current = value; setExchangeRate(value); setRateError(false);
     rateQuoteRef.current = null;
     setRateLoading(false); setRateSource('手动设置'); setRateMessage(`手动汇率 · 点击“最新”可恢复${rateScheduled ? '最近发布的欧易行情' : '行情'}`);
@@ -260,7 +304,7 @@ export default function QuickPriceApp({ user }: Props) {
             <div className="details-footer"><span><span className={`tiny-dot ${summary.pending ? 'pending' : ''}`} />{summary.pending ? `${summary.pending} 项待完善，暂未计入合计` : lines.length ? '所有项目已计价' : '等待添加项目'}</span><button className="text-button" onClick={() => { setMode('manual'); document.querySelector('.input-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Plus size={14} />添加项目</button></div>
           </section>
           <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{summary.pending ? '已确认金额' : '合计金额'}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · 单价 × 数量</span><span>{summary.pending ? '完善全部项目后可导出' : '核对后即可导出报价'}</span></div></section>
-          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label={rateScheduled ? "重新读取最近发布的欧易 USDT 汇率" : "重新读取最近可用的 USDT 汇率"} title={rateScheduled ? "重新读取最近发布的欧易汇率；约每 5 分钟更新，可能延迟，不会立即触发取数。" : "重新读取最近可用的 USDT 汇率"} aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
+          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label={rateScheduled ? "重新读取最近发布的欧易 USDT 汇率" : "重新读取最近可用的 USDT 汇率"} title={rateScheduled ? "重新读取最近发布的欧易汇率；服务器每 2 分钟检查，超过 10 分钟未更新会提示，不会立即触发取数。" : "重新读取最近可用的 USDT 汇率"} aria-busy={rateLoading}>{rateLoading ? "更新中" : "最新"}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
           <p id="rate-hint" className="rate-status" role="status">{rateError || (!!exchangeRate && rateUnits(exchangeRate) === null) ? '请输入大于 0 的汇率，最多 6 位整数、6 位小数。' : rateMessage} · {summary.safe && usdtAmount(summary.cents, exchangeRate) !== null ? `折合 ${usdtAmount(summary.cents, exchangeRate)} USDT` : '待换算'}<a href={rateSourceUrl === KUCOIN_RATE_URL ? KUCOIN_RATE_PAGE : OKX_RATE_PAGE} title={rateSourceUrl === KUCOIN_RATE_URL ? 'KuCoin USDT 行情页（官网默认美元计价）' : '欧易 USDT/CNY 换算页'} target="_blank" rel="noopener noreferrer">行情来源</a></p>
           <p className="session-note">商品库在云端保存；当前报价为临时清单，离开前请导出。</p>
         </section>

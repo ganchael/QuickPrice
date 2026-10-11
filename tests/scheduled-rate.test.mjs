@@ -36,15 +36,53 @@ test('reads the GitHub feed with its original OKX source and acquisition time', 
 });
 
 test('marks a delayed feed stale and refuses a feed older than 24 hours', async () => {
-  const value = feed(start - 16 * minute);
+  const value = feed(start - 10 * minute);
   const service = createRateService({ scheduled: true, now: () => start,
     fetcher: async () => Response.json(value),
   });
   const quote = await service.get();
   assert.equal(quote.kind, 'stale');
   assert.equal(quote.fetchedAt, value.fetchedAt);
-  assert.match(quote.warning, /超过 15 分钟/);
+  assert.match(quote.warning, /10 分钟/);
   assert.throws(() => parseScheduledOkxFeed(feed(start - 24 * 60 * minute - 1), start));
+});
+
+test('at ten minutes uses a newly fetched KuCoin quote with explicit provenance when OKX is delayed', async () => {
+  const value = feed(start - 10 * minute);
+  const writes = [];
+  const service = createRateService({ scheduled: true, now: () => start,
+    fetcher: async url => String(url).startsWith(KUCOIN_RATE_URL)
+      ? Response.json({ code: '200000', data: { USDT: '6.69012345' } }) : Response.json(value),
+    writeStored: async quote => { writes.push(quote); },
+  });
+  const quote = await service.get();
+  assert.equal(quote.rate, '6.690123');
+  assert.equal(quote.sourceUrl, KUCOIN_RATE_URL);
+  assert.equal(quote.delivery, undefined);
+  assert.equal(quote.fetchedAt, new Date(start).toISOString());
+  assert.match(quote.warning, /欧易已达 10 分钟.*KuCoin/);
+  assert.deepEqual(writes, [quote]);
+});
+
+test('an expired OKX feed remains recoverable with its original timestamp when every current source fails', async () => {
+  const value = feed(start - 10 * minute);
+  const writes = [];
+  const service = createRateService({ scheduled: true, now: () => start,
+    fetcher: async url => {
+      if (String(url).startsWith(KUCOIN_RATE_URL)) throw new Error('offline');
+      return Response.json(value);
+    }, writeStored: async quote => { writes.push(quote); },
+  });
+  const quote = await service.get();
+  assert.equal(quote.kind, 'stale');
+  assert.equal(quote.fetchedAt, value.fetchedAt);
+  assert.equal(writes[0].kind, 'reference');
+  const restarted = createRateService({ scheduled: true, now: () => start,
+    readStored: async () => writes[0], fetcher: async () => { throw new Error('offline'); },
+  });
+  const fallback = await restarted.get();
+  assert.equal(fallback.kind, 'stale');
+  assert.equal(fallback.fetchedAt, value.fetchedAt);
 });
 
 test('retains the prior OKX feed on failure or regression without switching its source or updating its time', async () => {

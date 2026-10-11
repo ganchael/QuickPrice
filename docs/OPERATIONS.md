@@ -99,7 +99,7 @@ curl -I http://127.0.0.1/login
 
 浏览器只调用同源 `/api/exchange-rate`；不会直接请求交易所或页面读取代理。所有外部请求由上海服务器处理，客户端无需连接外部行情源。接口需要有效登录，响应使用 `private, no-store`，未经登录返回 401。
 
-用户已选择 GitHub 定时取数。`.github/workflows/okx-rate.yml` 使用 Ubuntu 托管 runner，每小时的 2、7、12……57 分钟读取欧易换算网页使用的公开 JSON：
+.github/workflows/okx-rate.yml 同时支持服务器请求分支的 push、手动 dispatch 和定时取数。服务器主动检查是正常刷新机制，GitHub cron 保留为后备。用户已选择由 GitHub runner 读取欧易。`.github/workflows/okx-rate.yml` 使用 Ubuntu 托管 runner，每小时的 2、7、12……57 分钟读取欧易换算网页使用的公开 JSON：
 
 ```
 https://www.okx.com/priapi/v3/growth/convert/detail?baseCurrency=USDT&quoteCurrency=CNY
@@ -107,9 +107,9 @@ https://www.okx.com/priapi/v3/growth/convert/detail?baseCurrency=USDT&quoteCurre
 
 `scripts/fetch-okx-rate.mjs` 严格校验业务码、USDT/CNY 币对、原始价格、上游缓存时间和响应大小；每次最多等待 8 秒，最多尝试 3 次，总预算 27 秒。成功后仅更新独立 `rate-feed` 分支的 `okx-usdt-cny.json`，不修改 main、商品数据或机密。失败时任务报告失败，旧报价文件和获取时间保持不变。JSON 保留 `rawRate` 原始精度，展示与计算使用舍入后的 6 位小数 `rate`；获取时间不是市场成交时间。该官网内部接口可能变化，失败必须保留明确的缓存状态，不能改用 USD/CNY 或假设 USDT=USD。
 
-上海主站依次读取 GitHub raw 文件与 GitHub Contents API 的 raw 响应；固定仓库、文件和分支，每个通道最多等待 1.8 秒，严格校验来源、币对、价格精度和获取时间。两个域名网络路径不同，读取同一份欧易数据；不会把主站读取时间替换成欧易实际获取时间。API 后备使用匿名访问，有 GitHub 限流，因此优先使用 raw 文件。欧易报价超过 15 分钟未更新时标为 `kind: stale`，最多使用 24 小时内的值。读取失败时优先保留现有欧易成功报价；只有没有可用欧易报价时，才请求 [KuCoin EU USDT/CNY](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT) 作为明确标注的后备，最多等待 4 秒。所有渠道失败且没有缓存时返回 503，支持手动填写。
+上海主站依次读取 GitHub raw 文件与 GitHub Contents API 的 raw 响应；固定仓库、文件和分支，每个通道最多等待 1.8 秒，严格校验来源、币对、价格精度和获取时间。两个域名网络路径不同，读取同一份欧易数据；不会把主站读取时间替换成欧易实际获取时间。API 后备使用匿名访问，有 GitHub 限流，因此优先使用 raw 文件。欧易报价达到 10 分钟未更新时优先获取新的 KuCoin 后备，并明确标注实际来源和欧易延迟原因；后备失败时将原欧易报价标为 `kind: stale`，最多使用 24 小时内的值。读取失败且欧易缓存达到 10 分钟，或没有可用欧易报价时，请求 [KuCoin EU USDT/CNY](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT) 作为明确标注的后备，最多等待 4 秒。所有渠道失败且没有缓存时返回 503，支持手动填写。
 
-GitHub 计划任务可能排队延迟，不能保证每 5 分钟准时执行。页面显示“约每 5 分钟更新，可能延迟”及真实获取时间。持久缓存读写各最多等待 150 毫秒，前端等待本站响应最多 9 秒。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率与实际来源。参考价与 P2P 商家买卖成交价并不相同。
+GitHub 计划任务可能排队延迟，不能保证每 5 分钟准时执行。线上曾发现 cron 的实际间隔长达数小时，因此不能把 cron 表达式视为执行频率。现由服务器每 2 分钟检查，欧易报价达到 4 分钟时通过 `rate-refresh` 分支推送请求，触发 runner 补取。页面显示服务器检查频率、10 分钟过期保护及真实获取时间；不承诺 GitHub 排队或网络故障时也能保证 10 分钟内取得欧易报价。持久缓存读写各最多等待 150 毫秒，前端等待本站响应最多 9 秒。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率与实际来源。参考价与 P2P 商家买卖成交价并不相同。
 
 手动触发和排查：
 
@@ -118,15 +118,41 @@ gh workflow run okx-rate.yml --ref main
 gh run list --workflow okx-rate.yml --limit 5
 ```
 
-查看最近成功任务和 `rate-feed` 文件的 `fetchedAt`；任务失败时检查公开接口结构或可达性。任务需要仅限该 job 的 `contents: write`，Action 固定为官方版本 SHA；不需要上传服务器密码或创建额外个人 Token。GitHub 对长期无活动的公开仓库可能停用计划任务，届时需要重新启用工作流。
+查看最近成功任务和 `rate-feed` 文件的 `fetchedAt`；任务失败时检查公开接口结构或可达性。任务需要仅限该 job 的 `contents: write`，Action 固定为官方版本 SHA；不上传服务器密码或个人 Token。服务器主动补取使用用户明确批准的专用仓库写入 deploy key，权限不能限定到单个分支，私钥仅 root 可读；该脚本只推送专用 `rate-refresh` 分支。GitHub 对长期无活动的公开仓库可能停用计划任务，届时需要重新启用工作流。
 
 “行情来源”在新标签页打开对应供应商的前端页面：KuCoin 使用 [中文 USDT 行情页](https://www.kucoin.com/zh-hant/price/USDT)，OKX 使用上述 USDT/CNY 换算页。KuCoin 官网默认美元计价，`/converter/USDT-CNY` 目前返回 404，价格页 `?currency=CNY` 参数实测不会切换计价货币，因此不使用这些地址冒充人民币页面。接口地址仍用于取数和缓存校验，展示链接单独映射到网页，不影响汇率数值。
 
-成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求，手动修改会取消当前页面请求，迟到结果不会覆盖手动值。
+成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求。页面可见时每 60 秒读取同源接口，恢复前台立即读取；到欧易获取时间满 10 分钟时主动标记缓存。手动修改会取消当前页面请求并暂停自动覆盖；点击“最新”才恢复行情，迟到结果不会覆盖手动值。
 
 成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:okx-scheduled-v3`，浏览器继续使用 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源。服务重启会从 D1 读取成功值；`delivery: scheduled` 保留定时抓取来源及时间，延迟或失败时明确标注缓存。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
 
 2026-10-03 曾使用 CoinGate 国内访问后备；2026-10-10 核实它的原始响应仅为 `6.7`，显示补齐为 `6.700000`，故停用。替代源在上海服务器无代理直连测试 HTTP 200，原始 USDT/CNY 为 `6.6962679300000000`，USDT/USD 为 `0.9991000000000000`。数值仅为当次验收记录，不是默认值；证书配置见上面的系统 CA 部分。
+
+## 欧易汇率主动检查
+
+`deploy/aliyun/rate-watchdog.py` 使用 Python 3.6 标准库和系统 Git，保留 HTTPS CA 校验和 SSH 主机密钥校验，不依赖客户端 VPN。`quickprice-rate-watchdog.timer` 开机后执行，并每 2 分钟检查固定 GitHub 文件；报价达到 4 分钟时推送刷新请求，两次尝试至少相隔 4 分钟。满 10 分钟或通道不可用时，service 返回失败并在 journal 记录 ALERT，下个 timer 周期继续检查。
+
+运行路径：
+
+- 脚本：`/opt/quickprice/deploy/aliyun/rate-watchdog.py`。
+- 私钥：`/etc/quickprice-rate-watchdog/github_ed25519`，目录 0700、文件 0600、root:root，网站进程不能读取。
+- 主机校验：同目录 `known_hosts`，root:root 0600，固定 GitHub 官方 Ed25519 公钥并使用 `HostKeyAlias=github.com`。
+- 状态：`/var/lib/quickprice-rate-watchdog/status.json`，目录 0700、文件 0600，保存真实报价时间、检查结果和触发尝试时间。
+- SSH 连接：`ssh.github.com:443`，不关闭校验，不使用服务器密码登录 GitHub。
+
+脚本下载最新 main 的树，仅加入 `.rate-refresh-request.json` 请求文件；提交保留旧请求分支父链，通过普通快进 push 更新 `rate-refresh`。不 force push，不改 main 或 rate-feed，不接触商品、登录和汇率数据库。工作流始终 checkout main 执行经审查的取数代码，不执行请求文件中的命令。raw CDN 数据达到 4 分钟时也读 Contents API，选择获取时间较新的一份。整次检查预算 60 秒，每个 Git 和 HTTP 操作有独立超时。GitHub 写 deploy key 只限此仓库，但不是分支级权限；撤销时在仓库 Deploy keys 删除对应公钥，并停用检查 timer。
+
+检查和恢复：
+
+```sh
+systemctl list-timers quickprice-rate-watchdog.timer
+systemctl status quickprice-rate-watchdog.timer quickprice-rate-watchdog.service --no-pager
+journalctl -u quickprice-rate-watchdog.service -n 30 --no-pager
+cat /var/lib/quickprice-rate-watchdog/status.json
+systemctl start quickprice-rate-watchdog.service
+```
+
+检查 `quoteAgeSeconds`、`lastSuccessfulRequestAt`、真实 `quoteFetchedAt` 与 GitHub push 任务是否成功。触发任务成功不等于取得报价；应再次核对 `rate-feed/okx-usdt-cny.json` 的真实 `fetchedAt`。不可用时保留原报价时间并提示缓存或明确来源的后备，不能通过更新时间伪装新鲜度。
 
 ## 服务器每日备份
 

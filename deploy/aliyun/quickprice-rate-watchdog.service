@@ -1,0 +1,22 @@
+[Unit]
+Description=Check OKX quote age and request a GitHub refresh
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/quickprice/deploy/aliyun/rate-watchdog.py
+TimeoutStartSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/quickprice-rate-watchdog
+ReadOnlyPaths=/etc/quickprice-rate-watchdog
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal

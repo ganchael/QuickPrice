@@ -4,7 +4,7 @@ import { rateUnits } from './quote-export.ts';
 const CACHE_TTL = 60_000;
 const MAX_STALE_AGE = 24 * 60 * 60 * 1000;
 const STORAGE_TIMEOUT = 150;
-const SCHEDULED_FRESH_AGE = 15 * 60 * 1000;
+const SCHEDULED_FRESH_AGE = 10 * 60 * 1000;
 const SOURCES = new Map([
   [OKX_RATE_PAGE, '欧易 OKX · 获取于'],
   [KUCOIN_RATE_URL, 'KuCoin 市场参考 · 获取于'],
@@ -52,8 +52,8 @@ export function parseScheduledOkxFeed(value: unknown, now = Date.now()): RateQuo
 
 function scheduledStatus(quote: RateQuote, now: number): RateQuote {
   if (quote.delivery !== 'scheduled') return quote;
-  if (now - Date.parse(quote.fetchedAt) > SCHEDULED_FRESH_AGE) return { ...quote, kind: 'stale',
-    warning: '欧易定时取数已超过 15 分钟未更新，当前使用最近成功报价；获取时间保持不变，可手动修改汇率。' };
+  if (now - Date.parse(quote.fetchedAt) >= SCHEDULED_FRESH_AGE) return { ...quote, kind: 'stale',
+    warning: '欧易取数已达 10 分钟未更新，当前为缓存报价；请检查取数任务或手动修改汇率。' };
   return { ...quote, kind: 'reference' };
 }
 
@@ -126,6 +126,11 @@ export function createRateService({ fetcher = fetch, now = Date.now, readStored,
     return parseKuCoinRate(await response.json(), now());
   }, 4000);
 
+  async function expiredOkxFallback(quote: RateQuote): Promise<RateQuote> {
+    try { return { ...await fetchKuCoin(), warning: '欧易已达 10 分钟未更新，当前使用新获取的 KuCoin 后备报价；服务器正在主动补取欧易。' }; }
+    catch { return scheduledStatus(quote, now()); }
+  }
+
   async function loadStored() {
     if (storageRead) return;
     storageRead = true;
@@ -143,12 +148,16 @@ export function createRateService({ fetcher = fetch, now = Date.now, readStored,
       if (scheduled) {
         try {
           quote = await fetchScheduled();
+          if (now() - Date.parse(quote.fetchedAt) >= SCHEDULED_FRESH_AGE) quote = await expiredOkxFallback(quote);
           if (previous?.delivery === 'scheduled' && Date.parse(quote.fetchedAt) < Date.parse(previous.fetchedAt)) {
             return { ...previous, kind: 'stale', warning: '欧易定时报价返回了更早的数据，已保留上次成功报价与原获取时间。' };
           }
         } catch {
-          if (previous?.delivery === 'scheduled') return { ...previous, kind: 'stale',
-            warning: '欧易定时报价暂时读取失败，已保留最近成功报价与原获取时间；可点击“最新”重试或手动修改。' };
+          if (previous?.delivery === 'scheduled') {
+            if (now() - Date.parse(previous.fetchedAt) >= SCHEDULED_FRESH_AGE) return expiredOkxFallback(previous);
+            return { ...previous, kind: 'stale',
+              warning: '欧易定时报价暂时读取失败，已保留最近成功报价与原获取时间；可点击“最新”重试或手动修改。' };
+          }
           quote = { ...await fetchKuCoin(), warning: '欧易定时报价暂时不可用，当前使用 KuCoin 市场参考；可稍后重新读取欧易报价。' };
         }
       } else {
@@ -162,10 +171,11 @@ export function createRateService({ fetcher = fetch, now = Date.now, readStored,
       throw new Error('最新 USDT/CNY 汇率暂时不可用，请手动输入或重试。');
     }
     // Publish a successful value before storage I/O so persistence cannot drop it.
-    lastGood = quote;
+    const persistable = { ...quote, kind: 'reference' as const };
+    lastGood = persistable;
     lastCheckedAt = now();
     if (writeStored) {
-      try { await deadline(() => writeStored(quote), STORAGE_TIMEOUT); }
+      try { await deadline(() => writeStored(persistable), STORAGE_TIMEOUT); }
       catch { /* A valid current quote remains usable when persistence fails. */ }
     }
     return scheduledStatus(quote, now());

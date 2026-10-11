@@ -1,0 +1,13 @@
+[Unit]
+Description=Check QuickPrice OKX quote every two minutes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2min
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=true
+Unit=quickprice-rate-watchdog.service
+
+[Install]
+WantedBy=timers.target
