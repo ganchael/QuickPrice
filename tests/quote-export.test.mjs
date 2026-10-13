@@ -41,6 +41,37 @@ test('CSV includes numeric USDT unit prices, amounts, total, rate and provenance
   assert.equal(rows[4][1], 'CoinGecko · test time');
   assert.throws(() => quoteCsv(lines, productsSeed, '0'), /有效汇率/);
 });
+test('USDT line amount is rounded unit times quantity, and the total is the sum of lines', () => {
+  const product = { id: 'pep', shortName: '甲', name: '测试肽甲', specification: '5mg', unit: '件', category: '肽', price: '75.50', aliases: [] };
+  const lines = [{ id: '1', source: '甲 × 2', parsed: '甲', productId: 'pep', quantity: '2', price: '75.50', match: 'manual' }];
+  const text = quoteText(lines, [product], '7.2');
+  assert.match(text, /折合：20.98 USDT/);
+  assert.match(text, /折合合计：20.98 USDT/);
+  assert.match(text, /单价乘数量/);
+  const book = read(quoteCsv(lines, [product], '7.2'), { type: 'string' });
+  const rows = utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1 });
+  assert.equal(rows[1][11], 10.49);
+  assert.equal(rows[1][12], 20.98);
+  assert.equal(rows[2][12], 20.98);
+  const tiny = { ...product, id: 'edge', price: '0.01' };
+  const edges = [1, 2, 3].map(i => ({ id: String(i), source: 'edge', parsed: 'edge', productId: 'edge', quantity: '1', price: '0.01', match: 'manual' }));
+  assert.match(quoteText(edges, [tiny], '2'), /折合合计：0.03 USDT/);
+  const edgeBook = read(quoteCsv(edges, [tiny], '2'), { type: 'string' });
+  const edgeRows = utils.sheet_to_json(edgeBook.Sheets[edgeBook.SheetNames[0]], { header: 1 });
+  assert.equal(edgeRows[4][12], 0.03);
+});
+test('CSV unit prices are trimmed numbers with exactly two decimal places', () => {
+  const product = { id: 'pep', shortName: '甲', name: '测试肽甲', specification: '', unit: '件', category: '肽', price: '75.50', aliases: [] };
+  const lines = [
+    { id: '1', source: '甲', parsed: '甲', productId: 'pep', quantity: '1', price: ' 75.50', match: 'manual' },
+    { id: '2', source: '乙', parsed: '乙', productId: 'pep', quantity: '1', price: '10.5', match: 'manual' },
+  ];
+  const csv = quoteCsv(lines, [product], '7.2');
+  assert.match(csv, /"75.50"/);
+  assert.match(csv, /"10.50"/);
+  assert.equal(csv.includes('" 75.50"'), false);
+  assert.equal(csv.includes(',10.5,'), false);
+});
 test('copied and exported quotes retain scheduled OKX retrieval time without changing conversions', () => {
   const lines = parseQuote('GND10 × 2', productsSeed);
   const source = '欧易 OKX · 获取于 · 2026/10/10 10:05:00 · 缓存汇率 · 约每 5 分钟更新，可能延迟';

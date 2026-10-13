@@ -7,12 +7,30 @@ export function rateUnits(value: string): bigint | null {
   return units > BigInt(0) ? units : null;
 }
 
-export function usdtAmount(cnyCents: number, rate: string): string | null {
+// Half-up to 0.01 USDT. Callers round the CNY unit price with this, then
+// multiply by quantity, so a line and the quote total stay reconcilable.
+export function usdtCents(cnyCents: number, rate: string): bigint | null {
   const units = rateUnits(rate);
   if (units === null || !Number.isSafeInteger(cnyCents) || cnyCents < 0) return null;
-  // Integer division with half-up rounding to 0.01 USDT.
-  const cents = (BigInt(cnyCents) * BigInt(1000000) * BigInt(2) + units) / (units * BigInt(2));
-  return `${(cents / BigInt(100)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${(cents % BigInt(100)).toString().padStart(2, '0')}`;
+  return (BigInt(cnyCents) * BigInt(1000000) * BigInt(2) + units) / (units * BigInt(2));
+}
+
+export function formatUsdtCents(cents: bigint): string {
+  const negative = cents < BigInt(0);
+  const value = negative ? -cents : cents;
+  const whole = (value / BigInt(100)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}${whole}.${(value % BigInt(100)).toString().padStart(2, '0')}`;
+}
+
+export function formatUsdtPlain(cents: bigint): string {
+  const negative = cents < BigInt(0);
+  const value = negative ? -cents : cents;
+  return `${negative ? '-' : ''}${value / BigInt(100)}.${(value % BigInt(100)).toString().padStart(2, '0')}`;
+}
+
+export function usdtAmount(cnyCents: number, rate: string): string | null {
+  const cents = usdtCents(cnyCents, rate);
+  return cents === null ? null : formatUsdtCents(cents);
 }
 
 export function quoteFilename(date = new Date()): string {
