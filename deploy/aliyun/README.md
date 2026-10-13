@@ -4,7 +4,7 @@
 
 `live-dist-20260930.tgz` 是 2026-09-30 从服务器当前 `dist/` 保存的构建快照，SHA-256 为 `9168ea4c26ecc7221e5a4b733b638403e744490197581980bc9422048a164644`。它用于恢复当时实际运行的界面，解压后包含 `dist/`。移动端布局、提示避让以及 HTTP 复制兼容代码另保存在仓库根目录的 `hotfix/`。
 
-2026-10-03 已恢复完整 UI 源码并重新构建发布，当前 `app/` 与组件可继续维护。`live-dist-20260930.tgz` 保留为历史回滚快照，不代表最新汇率实现。当前服务器仍通过 Nginx 注入 `hotfix/` 中的移动端布局与 HTTP 复制兼容代码；新部署须保留该注入，直到这些兼容逻辑并入应用。
+2026-10-03 已恢复完整 UI 源码并重新构建发布，当前 `app/` 与组件可继续维护。`live-dist-20260930.tgz` 保留为历史回滚快照，不代表最新汇率实现。移动端底栏避让和 HTTP 复制兼容已并入应用。正在运行的旧构建仍依赖 Nginx 注入 `hotfix/`；包含本次修复的 `dist` 上线并验收后，再删除该注入。上线前的部署仍须保留注入。
 
 `quickprice-ca.conf` 是应用服务的证书配置，安装到 `/etc/systemd/system/quickprice.service.d/ca.conf` 后执行 `systemctl daemon-reload`、`systemctl restart quickprice`。它使 workerd 使用阿里云系统完整 CA bundle，保持 HTTPS 证书校验开启。其他发行版需要改为其实际 CA bundle 路径。
 

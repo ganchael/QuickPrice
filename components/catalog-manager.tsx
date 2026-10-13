@@ -1,11 +1,12 @@
 'use client';
 import { useRef, useState } from 'react';
-import { ArrowLeft, Check, Cloud, FileSpreadsheet, LoaderCircle, Pencil, Plus, RefreshCw, Search, Upload, X } from 'lucide-react';
+import { ArrowLeft, Check, Cloud, FileSpreadsheet, LoaderCircle, Pencil, Plus, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import { moneyCents, productDisplayName, productSecondaryName, searchProducts, type Product } from '@/lib/pricing';
-import { catalogVariantKey, mergeCatalog, validateProduct } from '@/lib/catalog';
+import { catalogVariantKey, mergeCatalog, removeProduct, validateProduct } from '@/lib/catalog';
 import type { ImportResult } from '@/lib/import-workbook';
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; products: Product[]; ready: boolean; saving: boolean; cloudError: string; updatedAt: string | null; onRefresh: () => Promise<Product[] | undefined>; onSave: (products: Product[]) => Promise<void> };
@@ -28,6 +29,7 @@ export function CatalogManager(props: Props) {
   const [reading, setReading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const visible = searchProducts(props.products, query);
   const canEdit = props.ready && !props.saving && !reading && !syncing;
@@ -75,8 +77,21 @@ export function CatalogManager(props: Props) {
     } finally { setSyncing(false); }
   };
   const close = (open: boolean) => { if (!open && props.saving) return; props.onOpenChange(open); };
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await props.onSave(removeProduct(props.products, pendingDelete.id));
+      setError('');
+      toast.add({ title: `已删除 ${productDisplayName(pendingDelete)}`, type: 'success' });
+      setPendingDelete(null);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '删除失败，请重试。';
+      setError(message);
+      toast.add({ title: message, type: 'error' });
+    }
+  };
 
-  return <Dialog open={props.open} onOpenChange={close}><DialogContent className="catalog-manager" showCloseButton={false}>
+  return <><Dialog open={props.open} onOpenChange={close}><DialogContent className="catalog-manager" showCloseButton={false}>
     <div className="dialog-heading"><div><DialogTitle>商品价格库</DialogTitle><DialogDescription>导入表格、编辑商品，通过简称或名称快速检索。</DialogDescription></div><DialogClose className="icon-button" aria-label="关闭商品价格库" disabled={props.saving || syncing}><X size={20} /></DialogClose></div>
     <div className="catalog-body">
       <div className="cloud-status"><span><Cloud size={15} />{props.saving ? '正在保存到云端…' : !props.ready ? '正在加载商品库…' : props.updatedAt ? `已同步 · ${new Date(props.updatedAt).toLocaleString('zh-CN', { hour12: false })}` : '云端商品库已就绪'}</span><button className="text-button" onClick={() => void sync()} disabled={props.saving || reading || syncing}><RefreshCw size={14} />{syncing ? '正在同步…' : editing || preview ? '同步，保留输入' : '同步云端'}</button></div>
@@ -97,10 +112,12 @@ export function CatalogManager(props: Props) {
         <div className="catalog-toolbar"><label className="catalog-search"><Search size={18} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索简称、名称或规格" aria-label="搜索简称、名称或规格" /></label><button type="button" className="secondary-button" onClick={() => { setEditingBase(null); setEditing({ id: newProductId(), shortName: '', name: '', specification: '', category: '未分类', unit: '盒', price: '', aliases: [] }); setError(''); }} disabled={!canEdit}><Plus size={16} />新增</button><button type="button" className="primary-button" onClick={() => fileInput.current?.click()} disabled={!canEdit}>{reading ? <LoaderCircle className="animate-spin" size={16} /> : <Upload size={16} />}{reading ? '正在读取' : '导入表格'}</button></div>
         <input type="file" accept=".xlsx,.xls,.csv" ref={fileInput} hidden aria-label="选择商品价格表" onChange={e => void readFile(e.target.files?.[0])} />
         <p className="catalog-count">{query ? `找到 ${visible.length} 条规格` : `共 ${props.products.length} 条规格`}<span>支持 Excel / CSV，自动识别左右并排表格和合并单元格</span></p>
-        {!props.ready && !props.cloudError ? <div className="catalog-loading"><LoaderCircle className="animate-spin" />加载云端商品库</div> : visible.length === 0 ? <div className="catalog-empty"><FileSpreadsheet size={32} /><h3>{query ? '没有找到相关商品' : '把商品表格带进来'}</h3><p>{query ? '试试产品简称、完整名称或规格中的关键词。' : '选择你的价格表，核对识别结果后即可一键导入。'}</p></div> : <div className="catalog-table-scroll"><Table><TableHeader><TableRow><TableHead>简称 / 名称</TableHead><TableHead>规格 / 品类</TableHead><TableHead className="catalog-price">单价</TableHead><TableHead><span className="sr-only">编辑</span></TableHead></TableRow></TableHeader><TableBody>{visible.map(p => <TableRow key={p.id}><TableCell><button type="button" className="catalog-product-name catalog-edit-name" aria-label={`编辑 ${productDisplayName(p)} ${p.specification}`} onClick={() => { setEditing({ ...p }); setEditingBase({ ...p }); setError(''); }} disabled={!canEdit}><strong>{productDisplayName(p)}</strong>{productSecondaryName(p) && <span>{productSecondaryName(p)}</span>}</button></TableCell><TableCell><div className="catalog-product-spec"><span>{p.specification || '未填规格'}</span><small>{p.category}</small></div></TableCell><TableCell className="catalog-price"><strong>{moneyCents(p.price) === null ? '待定' : `¥${p.price}`}</strong><small> / {p.unit}</small></TableCell><TableCell><button className="icon-button" aria-label={`编辑 ${productDisplayName(p)} ${p.specification}`} onClick={() => { setEditing({ ...p }); setEditingBase({ ...p }); setError(''); }} disabled={!canEdit}><Pencil size={16} /></button></TableCell></TableRow>)}</TableBody></Table></div>}
+        {!props.ready && !props.cloudError ? <div className="catalog-loading"><LoaderCircle className="animate-spin" />加载云端商品库</div> : visible.length === 0 ? <div className="catalog-empty"><FileSpreadsheet size={32} /><h3>{query ? '没有找到相关商品' : '把商品表格带进来'}</h3><p>{query ? '试试产品简称、完整名称或规格中的关键词。' : '选择你的价格表，核对识别结果后即可一键导入。'}</p></div> : <div className="catalog-table-scroll"><Table><TableHeader><TableRow><TableHead>简称 / 名称</TableHead><TableHead>规格 / 品类</TableHead><TableHead className="catalog-price">单价</TableHead><TableHead><span className="sr-only">操作</span></TableHead></TableRow></TableHeader><TableBody>{visible.map(p => <TableRow key={p.id}><TableCell><button type="button" className="catalog-product-name catalog-edit-name" aria-label={`编辑 ${productDisplayName(p)} ${p.specification}`} onClick={() => { setEditing({ ...p }); setEditingBase({ ...p }); setError(''); }} disabled={!canEdit}><strong>{productDisplayName(p)}</strong>{productSecondaryName(p) && <span>{productSecondaryName(p)}</span>}</button></TableCell><TableCell><div className="catalog-product-spec"><span>{p.specification || '未填规格'}</span><small>{p.category}</small></div></TableCell><TableCell className="catalog-price"><strong>{moneyCents(p.price) === null ? '待定' : `¥${p.price}`}</strong><small> / {p.unit}</small></TableCell><TableCell><div className="catalog-row-actions"><button className="icon-button" aria-label={`编辑 ${productDisplayName(p)} ${p.specification}`} onClick={() => { setEditing({ ...p }); setEditingBase({ ...p }); setError(''); }} disabled={!canEdit}><Pencil size={16} /></button><button className="icon-button" aria-label={`删除 ${productDisplayName(p)} ${p.specification}`} onClick={() => setPendingDelete(p)} disabled={!canEdit}><Trash2 size={16} /></button></div></TableCell></TableRow>)}</TableBody></Table></div>}
       </>}
       {error && <p role="alert" className="field-error">{error}</p>}
     </div>
     {(editing || preview) && <div className="catalog-footer">{editing ? <button className="primary-button editor-save" onClick={saveEditor} disabled={!canEdit}><Check size={17} />{props.saving ? '正在保存…' : '保存商品到云端'}</button> : preview && <div className="import-actions"><button className="secondary-button" onClick={() => { setPreview(null); setError(''); }} disabled={props.saving || syncing}>取消</button><button className="primary-button" onClick={confirmImport} disabled={!canEdit}><Upload size={17} />{props.saving ? '正在保存…' : `导入 ${preview.products.length} 项`}</button></div>}</div>}
-  </DialogContent></Dialog>;
+  </DialogContent></Dialog>
+  <AlertDialog open={pendingDelete !== null} onOpenChange={open => { if (!open && !props.saving) setPendingDelete(null); }}><AlertDialogContent><AlertDialogTitle>删除这个商品？</AlertDialogTitle><AlertDialogDescription>将从云端商品库删除{pendingDelete ? `「${productDisplayName(pendingDelete)}${pendingDelete.specification ? ` · ${pendingDelete.specification}` : ''}」` : '该商品'}。已生成的报价仍保留当前单价。若另一台设备刚保存过，需要先同步再删。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel disabled={props.saving}>取消</AlertDialogCancel><AlertDialogAction variant="destructive" type="button" disabled={props.saving || !canEdit} onClick={() => void confirmDelete()}>{props.saving ? '正在删除…' : '删除商品'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+  </>;
 }

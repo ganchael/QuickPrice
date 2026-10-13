@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { utils, write } from 'xlsx';
 import { importWorkbook } from '../lib/import-workbook.ts';
-import { catalogKey, mergeCatalog, validateCatalog } from '../lib/catalog.ts';
+import { catalogKey, mergeCatalog, removeProduct, validateCatalog } from '../lib/catalog.ts';
 import { parseQuote, searchProducts, quoteText, quoteCsv, summarize, productDisplayName, productSecondaryName, productLabel } from '../lib/pricing.ts';
 
 function workbook(rows, merges = []) {
@@ -105,6 +105,16 @@ test('user reference: all 192 SKUs, 92 names, 39 blank abbreviations and exact b
   assert.ok(r.products.every(p => p.unit === '盒'));
 });
 
+test('removeProduct drops one id and keeps the revision contract for the caller', () => {
+  const products = [
+    { id: 'a', shortName: '甲', name: '测试肽甲', specification: '5mg', unit: '件', category: '肽', price: '75.50', aliases: [] },
+    { id: 'b', shortName: '乙', name: '边界半分', specification: '', unit: '件', category: '肽', price: '0.01', aliases: [] },
+  ];
+  const next = removeProduct(products, 'a');
+  assert.deepEqual(next.map(p => p.id), ['b']);
+  assert.equal(products.length, 2);
+  assert.throws(() => removeProduct(products, 'missing'), /不存在/);
+});
 test('missing abbreviations use full names in product labels and quote exports', () => {
   const r = importWorkbook(workbook([['简称', '名称', '规格', '价格'], ['', 'Adipotide/FTTP', '2mg', 130]]));
   const p = r.products[0];

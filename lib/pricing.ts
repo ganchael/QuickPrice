@@ -1,4 +1,4 @@
-import { rateUnits, usdtAmount } from './quote-export.ts';
+import { formatUsdtCents, formatUsdtPlain, rateUnits, usdtCents } from './quote-export.ts';
 export type Product = { id: string; shortName: string; name: string; specification: string; unit: string; category: string; price: string; aliases: string[] };
 export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none' };
 export const productsSeed: Product[] = [
@@ -73,28 +73,53 @@ export function searchProducts(products: Product[], query: string): Product[] {
   const terms = normalize(query).split(/\s+/).filter(Boolean);
   return products.filter(p => terms.every(t => normalize([p.shortName, p.name, p.specification, p.category, ...p.aliases].join(' ')).includes(t)));
 }
+const USDT_NOTE = 'USDT 单价按人民币单价换算并四舍五入到分，行金额为单价乘数量，合计为各行金额之和。';
+function lineUsdtCents(line: QuoteLine, rate: string): bigint | null {
+  const unitCents = moneyCents(line.price);
+  const qty = quantityValue(line.quantity);
+  if (lineTotal(line) === null || unitCents === null || qty === null) return null;
+  const unit = usdtCents(unitCents, rate);
+  return unit === null ? null : unit * BigInt(qty);
+}
+export function quoteUsdtCents(lines: QuoteLine[], rate: string): bigint | null {
+  if (rateUnits(rate) === null) return null;
+  return lines.reduce((sum, line) => sum + (lineUsdtCents(line, rate) ?? BigInt(0)), BigInt(0));
+}
+export function quoteUsdtAmount(lines: QuoteLine[], rate: string): string | null {
+  const cents = quoteUsdtCents(lines, rate);
+  return cents === null ? null : formatUsdtCents(cents);
+}
+function csvUnitPrice(price: string): string {
+  const cents = moneyCents(price);
+  return cents === null ? price : (cents / 100).toFixed(2);
+}
 export function quoteText(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置') {
   if (rate !== undefined && rateUnits(rate) === null) throw new Error('请填写有效汇率：1 USDT 对应的人民币金额，最多 6 位小数。');
   const s = summarize(lines);
+  const usdtTotal = rate === undefined ? null : quoteUsdtCents(lines, rate);
   return ['多肽报价清单', ...lines.map((l, i) => {
     const p = products.find(p => p.id === l.productId);
     const total = lineTotal(l);
-    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${total === null ? '待完善（未计入）' : '¥' + money(total)}${rate !== undefined && total !== null ? `\n   折合：${usdtAmount(total, rate)} USDT` : ''}`;
-  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, ...(rate !== undefined ? [`折合${s.pending ? '已确认' : ''}合计：${usdtAmount(s.cents, rate) ?? '金额超限'} USDT`, `汇率：1 USDT = ¥${rate.trim()}（${rateSource}）`, 'USDT 合计按人民币总额换算，保留两位小数。'] : []), `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
+    const usdt = rate === undefined ? null : lineUsdtCents(l, rate);
+    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${total === null ? '待完善（未计入）' : '¥' + money(total)}${usdt !== null ? `\n   折合：${formatUsdtCents(usdt)} USDT` : ''}`;
+  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, ...(rate !== undefined ? [`折合${s.pending ? '已确认' : ''}合计：${usdtTotal === null ? '金额超限' : formatUsdtCents(usdtTotal)} USDT`, `汇率：1 USDT = ¥${rate.trim()}（${rateSource}）`, USDT_NOTE] : []), `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
 }
 export function quoteCsv(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置') {
   if (rate !== undefined && rateUnits(rate) === null) throw new Error('请填写有效汇率。');
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   const s = summarize(lines);
-  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p ? productDisplayName(p) : '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, l.price, lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
+  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p ? productDisplayName(p) : '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, csvUnitPrice(l.price), lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
   if (rate !== undefined) {
     rows[0].push('单价（USDT）', '金额（USDT）', '汇率（人民币/USDT）');
     lines.forEach((line, i) => {
-      const unit = moneyCents(line.price), total = lineTotal(line);
-      rows[i + 1].push(unit === null ? '' : (usdtAmount(unit, rate) ?? '').replace(/,/g, ''), total === null ? '' : (usdtAmount(total, rate) ?? '').replace(/,/g, ''), rate.trim());
+      const unitCents = moneyCents(line.price);
+      const unit = unitCents === null ? null : usdtCents(unitCents, rate);
+      const total = lineUsdtCents(line, rate);
+      rows[i + 1].push(unit === null ? '' : formatUsdtPlain(unit), total === null ? '' : formatUsdtPlain(total), rate.trim());
     });
-    rows[rows.length - 1].push('', (usdtAmount(s.cents, rate) ?? '').replace(/,/g, ''), rate.trim());
-    rows.push(['汇率来源', rateSource], ['换算说明', '1 USDT = ' + rate.trim() + ' 人民币；金额和合计按对应人民币金额换算，保留两位小数。']);
+    const quoteTotal = quoteUsdtCents(lines, rate);
+    rows[rows.length - 1].push('', quoteTotal === null ? '' : formatUsdtPlain(quoteTotal), rate.trim());
+    rows.push(['汇率来源', rateSource], ['换算说明', '1 USDT = ' + rate.trim() + ' 人民币；' + USDT_NOTE]);
   }
   return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
 }
