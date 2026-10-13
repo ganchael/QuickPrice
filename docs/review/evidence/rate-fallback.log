@@ -1,0 +1,37 @@
+three-lines-copy:
+多肽报价清单
+1. 半分 · 边界半分
+   1 件 × ¥0.01 = ¥0.01
+   折合：0.01 USDT
+2. 半分 · 边界半分
+   1 件 × ¥0.01 = ¥0.01
+   折合：0.01 USDT
+3. 半分 · 边界半分
+   1 件 × ¥0.01 = ¥0.01
+   折合：0.01 USDT
+
+合计：¥0.03
+折合合计：0.02 USDT
+汇率：1 USDT = ¥2（手动设置）
+USDT 合计按人民币总额换算，保留两位小数。
+3 项 · 已计价数量 3
+
+bom-bytes 239,187,191
+
+unit-sum vs total shown above
+
+unit usdt 75.50 -> 10.49
+
+line usdt 151.00 -> 20.97
+
+unit*2 numeric check 10.49*2=20.98 vs line 20.97
+
+all-down-no-cache: THROW 最新 USDT/CNY 汇率暂时不可用，请手动输入或重试。
+
+all-down-fresh-cache: kind=stale rate=6.700000 source=欧易 OKX · 获取于 warning=欧易定时报价暂时读取失败，已保留最近成功报价与原获取时间；可点击“最新”重试或手动修改。 delivery=scheduled
+
+okx-stale-kucoin-ok: kind=reference rate=6.500000 source=KuCoin 市场参考 · 获取于 warning=欧易已达 10 分钟未更新，当前使用新获取的 KuCoin 后备报价；服务器正在主动补取欧易。 delivery=
+
+okx-stale-kucoin-fail: kind=stale rate=6.700000 source=欧易 OKX · 获取于 warning=欧易取数已达 10 分钟未更新，当前为缓存报价；请检查取数任务或手动修改汇率。 delivery=scheduled
+
+github-fail-no-previous: kind=reference rate=6.611111 source=KuCoin 市场参考 · 获取于 warning=欧易定时报价暂时不可用，当前使用 KuCoin 市场参考；可稍后重新读取欧易报价。 delivery=
