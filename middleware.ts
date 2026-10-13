@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { securityHeaders } from '@/lib/security-headers';
 export function middleware(_request: NextRequest) {
   const response = NextResponse.next();
-  response.headers.set('Cache-Control', 'private, no-store');
-  response.headers.set('Vary', 'Cookie');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'same-origin');
+  for (const header of securityHeaders({ nodeEnv: process.env.NODE_ENV })) response.headers.set(header.name, header.value);
   return response;
 }
 export const config = { matcher: ['/((?!_next/static|favicon.svg).*)'] };
