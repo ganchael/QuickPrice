@@ -19,6 +19,20 @@
 
 `hotfix/` 仍留在仓库。生产旧构建还依赖 Nginx 注入；新 dist 上线并验收后才能删注入。
 
+## 2026-10-13 实测
+
+`npm test`（Node v22.14.0）：84 通过，2 跳过，0 失败。`npx tsc --noEmit` 通过。浏览器没有注入 hotfix。
+
+- 桌面 1440×900：复制、导出、恢复自动的底边都在 863px 以内，`elementFromPoint` 命中按钮本身。手动汇率 7.2 刷新后仍在，按钮为“恢复自动”。示例里把第一行数量改为 2 后，页面折合 23.76 USDT（10.49×2 = 20.98，0.01 元五行换算为 0.00，10 元两行 2.78）。
+- CSV 带 UTF-8 BOM。单价 `75.50`，USDT 单价 `10.49`，行金额 `20.98`。`=1+1` 仍被加引号前缀。
+- 点“恢复自动”后汇率回到已发布的 `6.686698`，按钮变回“最新”。`/api/exchange-rate` 为 200 JSON。
+- 375×667、`pointer: coarse`：底栏 `bottom: 50px`、`z-index: 41`，三个按钮都点得到。
+- 390×844：底栏 `bottom: 68px`、`z-index: 41`，三个按钮都点得到。
+- 删除确认后商品从 4 条变为 3 条。这是本机 D1，不是生产库。
+- 响应头有 CSP（`frame-ancestors 'none'`、`connect-src 'self'`）和 `X-Frame-Options: DENY`，没有 `Strict-Transport-Security`。
+
+截图和当次 JSON 在 `docs/fixes/`。
+
 ## 怎么测
 
 本地账号只放在 gitignore 的 `.dev.vars`，不要提交。开发服务实际听在 IPv6 `localhost`（`::1`），`127.0.0.1` 会拒绝连接。
