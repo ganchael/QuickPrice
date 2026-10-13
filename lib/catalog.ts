@@ -28,6 +28,10 @@ export function validateCatalog(value: unknown): Product[] {
   if (new Set(products.map(catalogVariantKey)).size !== products.length) throw new Error('存在相同简称、名称、规格和单位的商品，请先合并。');
   return products;
 }
+export function removeProduct(products: Product[], id: string): Product[] {
+  if (!products.some(p => p.id === id)) throw new Error('要删除的商品不存在。');
+  return validateCatalog(products.filter(p => p.id !== id));
+}
 export function mergeCatalog(existing: Product[], incoming: Product[]) {
   const result = existing.map(p => ({ ...p }));
   const positions = new Map(result.map((p, i) => [catalogVariantKey(p), i]));

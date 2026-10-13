@@ -35,7 +35,9 @@
 - 当前 Nginx 配置、兼容脚本、构建快照及备份脚本保存在 `deploy/aliyun/`、`hotfix/`，详见 `deploy/aliyun/README.md`。
 - 服务器 glibc 2.32 无法直接执行当前 workerd；独立兼容库在 `/opt/quickprice-glibc/unpack/lib/x86_64-linux-gnu/`。`node_modules/@cloudflare/workerd-linux-64/bin/workerd` 是 loader 包装脚本，实际可执行文件为同目录 `workerd.real`。重新安装 npm 依赖会覆盖包装脚本，需要恢复后再启动；不要替换系统 glibc。
 
-2026-10-03 已恢复完整新版界面源码，并由本机可读取的 `app/`、`components/` 和样式构建发布。2026-09-30 的 `live-dist-20260930.tgz` 属于历史恢复包，不能代表当前已修复的汇率实现。Nginx 当前仍注入仓库根目录 `hotfix/quickprice-hotfix.js` 和 CSS：JS 提供 HTTP 下直接复制报价的兼容方式，CSS 保留手机布局与提示避让修复；上传新构建时仍须保留这些文件和注入配置。
+2026-10-03 已恢复完整新版界面源码，并由本机可读取的 `app/`、`components/` 和样式构建发布。2026-09-30 的 `live-dist-20260930.tgz` 属于历史恢复包，不能代表当前已修复的汇率实现。
+
+2026-10-13 起，手机底栏避让、短屏高度和明文 HTTP 下的复制兼容已经写进应用（`app/globals.css`、`lib/legacy-clipboard.ts`）。站点继续使用明文 HTTP，不要加 TLS、Secure Cookie 或 HSTS。生产仍在跑旧构建时，Nginx 还要注入 `hotfix/quickprice-hotfix.js` 和 CSS。新 `dist` 上传并重启、确认复制和底栏可点之后，再从 `/etc/nginx/conf.d/quickprice.conf` 去掉 `sub_filter` 注入以及 `/quickprice-hotfix.js`、`/quickprice-hotfix.css` 两个 `location`。不要在新构建上线前先删注入。`hotfix/` 留在仓库里作历史记录，不再作为线上布局来源。
 
 ### workerd 的系统 CA 配置
 
@@ -109,7 +111,7 @@ https://www.okx.com/priapi/v3/growth/convert/detail?baseCurrency=USDT&quoteCurre
 
 上海主站依次读取 GitHub raw 文件与 GitHub Contents API 的 raw 响应；固定仓库、文件和分支，每个通道最多等待 1.8 秒，严格校验来源、币对、价格精度和获取时间。两个域名网络路径不同，读取同一份欧易数据；不会把主站读取时间替换成欧易实际获取时间。API 后备使用匿名访问，有 GitHub 限流，因此优先使用 raw 文件。欧易报价达到 10 分钟未更新时优先获取新的 KuCoin 后备，并明确标注实际来源和欧易延迟原因；后备失败时将原欧易报价标为 `kind: stale`，最多使用 24 小时内的值。读取失败且欧易缓存达到 10 分钟，或没有可用欧易报价时，请求 [KuCoin EU USDT/CNY](https://api.kucoin.eu/api/v1/prices?base=CNY&currencies=USDT) 作为明确标注的后备，最多等待 4 秒。所有渠道失败且没有缓存时返回 503，支持手动填写。
 
-GitHub 计划任务可能排队延迟，不能保证每 5 分钟准时执行。线上曾发现 cron 的实际间隔长达数小时，因此不能把 cron 表达式视为执行频率。现由服务器每 2 分钟检查，欧易报价达到 4 分钟时通过 `rate-refresh` 分支推送请求，触发 runner 补取。页面显示服务器检查频率、10 分钟过期保护及真实获取时间；不承诺 GitHub 排队或网络故障时也能保证 10 分钟内取得欧易报价。持久缓存读写各最多等待 150 毫秒，前端等待本站响应最多 9 秒。人民币金额除以 CNY/USDT 汇率得到 USDT，复制和导出使用当前输入框中的同一汇率与实际来源。参考价与 P2P 商家买卖成交价并不相同。
+GitHub 计划任务可能排队延迟，不能保证每 5 分钟准时执行。线上曾发现 cron 的实际间隔长达数小时，因此不能把 cron 表达式视为执行频率。现由服务器每 2 分钟检查，欧易报价达到 4 分钟时通过 `rate-refresh` 分支推送请求，触发 runner 补取。页面显示服务器检查频率、10 分钟过期保护及真实获取时间；不承诺 GitHub 排队或网络故障时也能保证 10 分钟内取得欧易报价。持久缓存读写各最多等待 150 毫秒，前端等待本站响应最多 9 秒。USDT 先按人民币单价换算并四舍五入到 0.01，行金额为该单价乘以数量，报价合计为各行 USDT 之和；复制文本、页面“折合”和 CSV 使用同一算法。人民币仍按分计算，行金额为单价乘数量，合计为各行之和。复制和导出使用当前输入框中的同一汇率与实际来源。参考价与 P2P 商家买卖成交价并不相同。
 
 手动触发和排查：
 
@@ -122,7 +124,7 @@ gh run list --workflow okx-rate.yml --limit 5
 
 “行情来源”在新标签页打开对应供应商的前端页面：KuCoin 使用 [中文 USDT 行情页](https://www.kucoin.com/zh-hant/price/USDT)，OKX 使用上述 USDT/CNY 换算页。KuCoin 官网默认美元计价，`/converter/USDT-CNY` 目前返回 404，价格页 `?currency=CNY` 参数实测不会切换计价货币，因此不使用这些地址冒充人民币页面。接口地址仍用于取数和缓存校验，展示链接单独映射到网页，不影响汇率数值。
 
-成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求。页面可见时每 60 秒读取同源接口，恢复前台立即读取；到欧易获取时间满 10 分钟时主动标记缓存。手动修改会取消当前页面请求并暂停自动覆盖；点击“最新”才恢复行情，迟到结果不会覆盖手动值。
+成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求。页面可见时每 60 秒读取同源接口，恢复前台立即读取；到欧易获取时间满 10 分钟时主动标记缓存。手动修改会取消当前页面请求并暂停自动覆盖，有效汇率写入本机 `quickprice:manual-usdt-cny-rate:v1`，刷新后恢复。按钮在手动状态下显示“恢复自动”，点击后清除该记录并重新读取行情。迟到结果不会覆盖手动值。
 
 成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:okx-scheduled-v3`，浏览器继续使用 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源。服务重启会从 D1 读取成功值；`delivery: scheduled` 保留定时抓取来源及时间，延迟或失败时明确标注缓存。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
 
