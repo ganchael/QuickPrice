@@ -118,6 +118,16 @@ export default function QuickPriceApp({ user }: Props) {
   }, []);
   useEffect(() => { installLegacyClipboard(); }, []);
   useEffect(() => {
+    const actions = document.querySelector('.quote-actions');
+    if (!actions) return;
+    const root = document.documentElement;
+    const update = () => root.style.setProperty('--quote-actions-height', `${actions.getBoundingClientRect().height}px`);
+    const observer = new ResizeObserver(update);
+    observer.observe(actions);
+    update();
+    return () => { observer.disconnect(); root.style.removeProperty('--quote-actions-height'); };
+  }, []);
+  useEffect(() => {
     const savedManual = readManualRate();
     const previous = storedRate();
     if (savedManual) {

@@ -680,6 +680,7 @@ button.account-link { background: none; border: 0; cursor: pointer; font: inheri
   .quote-actions .action-bar { margin-top: 0; }
   .quote-actions .rate-status { margin-top: 4px; }
   .workspace { padding-bottom: 148px; }
+  [data-slot=toast-viewport] { bottom: calc(var(--quote-actions-height, 140px) + 12px); }
 }
 @media (min-width: 861px) and (max-width: 1100px) {
   .quote-actions { left: calc(24px + 275px + 18px); right: 24px; }
