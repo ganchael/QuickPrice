@@ -1,6 +1,6 @@
 # 交接：phase1 修复（grok/phase1-fixes）
 
-给接下来接手这个仓库的代理。不要部署生产，不要改 `/var/lib/quickprice` 或生产密码。
+给接下来接手这个仓库的代理。原 phase1 开发阶段未获生产部署授权；2026-10-14 用户已授权 Codex 部署，验收记录见文末。后续生产变更仍须依据用户授权，并保留 `/var/lib/quickprice` 和运行机密。
 
 ## 这次改了什么
 
@@ -17,7 +17,7 @@
 7. `npm test` 在 Node 22.14 使用 `node --experimental-strip-types --test tests/*.test.mjs`。
 8. 安全响应头：`Content-Security-Policy`（含 `frame-ancestors 'none'`、`connect-src 'self'`）和 `X-Frame-Options: DENY`。开发环境额外允许内联脚本、`unsafe-eval` 和 `ws:`/`wss:`。没有 HSTS。
 
-`hotfix/` 仍留在仓库。生产旧构建还依赖 Nginx 注入；新 dist 上线并验收后才能删注入。
+`hotfix/` 仍留在仓库作历史恢复记录。2026-10-14 新 dist 已上线并验收，Nginx 注入已撤下。
 
 ## 2026-10-13 实测
 
@@ -53,7 +53,7 @@ npx tsc --noEmit
 - 导出 CSV 单价是两位小数；75.50×2 @ 7.2 的 USDT 行是 20.98。
 - 响应头有 CSP 和 `X-Frame-Options: DENY`，没有 `Strict-Transport-Security`。页面能打开，`/api/exchange-rate` 返回 JSON。
 
-## 生产上还要人做的事
+## 生产部署流程（2026-10-14 已执行）
 
 不要在这台 1 GiB 服务器上构建。本机 `npm ci`、`npm run build`，上传 `dist`，保留原 dist 以便回滚，然后 `systemctl restart quickprice`。不要覆盖 `/var/lib/quickprice`、`/etc/quickprice/runtime.env` 或备份。不要用历史商品 JSON 覆盖在线商品库。
 
@@ -70,3 +70,12 @@ npx tsc --noEmit
 - HTTPS / Secure Cookie / `X-Forwarded-Proto`。用户要求保留明文 HTTP。
 - 生产部署、生产数据库。
 - 登录限流仍用 `CF-Connecting-IP`（Nginx 把它设成 `$remote_addr`），不在本次修复范围。
+
+## 2026-10-14 Codex 上线交接
+
+Grok main `2364f0b` 已发布到 http://106.14.116.244/ 。验收发现桌面成功提示会遮挡固定导出按钮，补充 `cec6b8a`：通过 ResizeObserver 测量 `.quote-actions` 高度，提示显示在其上方；手机既有规则保留。代码与当前 Nginx、部署记录通过 `codex/grok-deployment-toast` 分支交接，后续维护请合入该补充。
+
+- 84 项自动测试通过，2 项因独立集成环境／参考文件未配置跳过；类型检查、构建通过。
+- 公网手机两种尺寸与桌面的真实 HTTP 复制、CSV、USDT、手动汇率保存／恢复、新建报价通过。独立本地库商品删除和 revision 409 保护通过。
+- 生产商品 301 条、版本 8，部署前后内容校验一致。汇率刷新、每日备份与原运行机密保留；Codex 聊天定时巡检保持用户设置的暂停状态。
+- 回滚备份：`/var/backups/quickprice/grok-phase1-2364f0b-20261014T021351Z`。回滚旧 dist 时同时恢复备份里的 Nginx 配置。

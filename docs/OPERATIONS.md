@@ -3,7 +3,7 @@
 ## 当前服务
 
 - 当前入口：http://106.14.116.244/ （2026-09-29 部署至用户阿里云上海 Linux 服务器）。
-- 用户选择先用公网 IP，当前没有 TLS；HTTP 下通过 `hotfix/quickprice-hotfix.js` 提供点击后直接复制的兼容方式，浏览器阻止时仍需手动复制。
+- 用户选择先用公网 IP，当前没有 TLS；HTTP 下通过应用内的 `lib/legacy-clipboard.ts` 提供点击后直接复制的兼容方式，浏览器阻止时仍需手动复制。
 - 原 Sites 入口：https://quickprice-assistant.ganchael1.chatgpt.site 。其配置保留在 `.openai/hosting.json`，与新服务器数据不会自动同步。
 - D1 绑定：`DB`。
 - 应用账号：`888`，商品库归属：`account:888`。
@@ -37,7 +37,7 @@
 
 2026-10-03 已恢复完整新版界面源码，并由本机可读取的 `app/`、`components/` 和样式构建发布。2026-09-30 的 `live-dist-20260930.tgz` 属于历史恢复包，不能代表当前已修复的汇率实现。
 
-2026-10-13 起，手机底栏避让、短屏高度和明文 HTTP 下的复制兼容已经写进应用（`app/globals.css`、`lib/legacy-clipboard.ts`）。站点继续使用明文 HTTP，不要加 TLS、Secure Cookie 或 HSTS。生产仍在跑旧构建时，Nginx 还要注入 `hotfix/quickprice-hotfix.js` 和 CSS。新 `dist` 上传并重启、确认复制和底栏可点之后，再从 `/etc/nginx/conf.d/quickprice.conf` 去掉 `sub_filter` 注入以及 `/quickprice-hotfix.js`、`/quickprice-hotfix.css` 两个 `location`。不要在新构建上线前先删注入。`hotfix/` 留在仓库里作历史记录，不再作为线上布局来源。
+2026-10-14 已部署 Grok phase1 修复（main `2364f0b`），并补充桌面提示避让（`cec6b8a`）：手机底栏避让、短屏高度和明文 HTTP 下的复制兼容由应用提供，桌面提示根据固定报价操作区的实际高度避让。已从 `/etc/nginx/conf.d/quickprice.conf` 删除 `sub_filter` 注入以及两个 hotfix `location`，`nginx -t` 和 reload 通过；仓库 Nginx 配置同步为当前实际配置。站点继续使用明文 HTTP。`hotfix/` 留作历史恢复记录；回滚旧 dist 时必须一并恢复相匹配的旧 Nginx 配置。
 
 ### workerd 的系统 CA 配置
 
@@ -175,4 +175,13 @@ Git 历史保留此前源码变更及历史商品快照。仓库还保存阿里�
 - 77 项测试通过（2 项需要独立本地集成环境的测试跳过）、类型检查和构建通过；手机 375×667 的自动轮询、手动保护、点击最新恢复、10 分钟过期提示和迟到响应保护通过。手机和桌面 HTTP 复制、CSV USDT 换算验收通过。
 - 发布前后商品 301 条、版本 8，排序后的商品 JSON SHA-256 均为 `4131bd0275f005d961034455a113a2386aca3dcba5f7c5c7b9b931867771d235`。
 - 旧构建备份：`/var/backups/quickprice/okx-feed-20261011T171342Z`；数据库另由现有备份 service 生成私有备份。专用私钥 0600、目录 0700，已验证网站用户不能读取。
-- 当前聊天另设每 10 分钟一次的 Codex 巡检，健康状态保持安静，只报告持续异常或恢复。此本机巡检依赖电脑与应用运行；服务器的 2 分钟检查独立运行。
+- 当前聊天曾另设每 10 分钟一次的 Codex 巡检，用户已于 2026-10-13 暂停；服务器的 2 分钟检查独立运行。
+
+### 2026-10-14 Grok phase1 部署验收
+
+- 从 GitHub main `2364f0b` 的独立副本按锁文件安装依赖，在本机构建；测试 84 通过、2 跳过，类型检查与构建通过。实际线上包含附加桌面提示修复 `cec6b8a`，通过 `codex/grok-deployment-toast` 分支交接。
+- 旧构建、源码与 Nginx 配置：`/var/backups/quickprice/grok-phase1-2364f0b-20261014T021351Z`。数据库另由现有备份 service 在切换前生成私有备份。
+- 部署前后商品 301 条、版本 8、更新时间相同；按商品 ID 排序、JSON 字段排序、UTF-8 无空白编码计算的 SHA-256 均为 `af4e2b0dc6edefe19745f994eaadc171c188c5213513da6cfc8e47f1cffcd947`。未执行生产商品写入或迁移，`runtime.env` 保持 0640。
+- 公网 Chromium 浏览器的 375×667 触屏、390×844 触屏与 1440×900 桌面验收通过：原生 HTTP 复制返回成功、CSV 导出含 USDT、手动汇率刷新保留并能恢复自动、新建报价能清空临时清单。提示最终显示在操作区上方，按钮中心可命中且页面无横向溢出。
+- 独立本地测试库确认商品删除成功、过期 revision 写入返回 409；生产仅查看商品库，未新增或删除商品。
+- 公网汇率接口返回 200、真实欧易 `fetchedAt` 的年龄小于 10 分钟；quickprice、Nginx、汇率 timer 与每日备份 timer 均 active。响应有 CSP 和 `X-Frame-Options: DENY`，没有 HSTS。当前页面不再加载 hotfix CSS/JS。
