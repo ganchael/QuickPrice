@@ -68,14 +68,16 @@ npx tsc --noEmit
 ## 未做
 
 - HTTPS / Secure Cookie / `X-Forwarded-Proto`。用户要求保留明文 HTTP。
-- 生产部署、生产数据库。
 - 登录限流仍用 `CF-Connecting-IP`（Nginx 把它设成 `$remote_addr`），不在本次修复范围。
 
 ## 2026-10-14 Codex 上线交接
 
-Grok main `2364f0b` 已发布到 http://106.14.116.244/ 。验收发现桌面成功提示会遮挡固定导出按钮，补充 `cec6b8a`：通过 ResizeObserver 测量 `.quote-actions` 高度，提示显示在其上方；手机既有规则保留。代码与当前 Nginx、部署记录通过 `codex/grok-deployment-toast` 分支交接，后续维护请合入该补充。
+生产正在运行的应用代码是 `cec6b8a`（桌面提示避让）。它基于已合并的 main `2364f0b`。文档提交 `67770e1` 只记录部署，不在 `dist` 里。之后若只合入文档，不会自动更新线上页面。
+
+`2364f0b` 先发布到现有公网入口。验收发现桌面成功提示会遮挡固定导出按钮，于是补了 `cec6b8a`：ResizeObserver 测量 `.quote-actions` 高度，提示停在操作区上方；手机沿用原有底栏间距。Nginx 已撤下 hotfix 注入。仓库里的 `qa.env`、`qa-fixture.sql`、`deploy-grok-phase1.sh` 没有出现在这个 PR 中。
 
 - 84 项自动测试通过，2 项因独立集成环境／参考文件未配置跳过；类型检查、构建通过。
 - 公网手机两种尺寸与桌面的真实 HTTP 复制、CSV、USDT、手动汇率保存／恢复、新建报价通过。独立本地库商品删除和 revision 409 保护通过。
 - 生产商品 301 条、版本 8，部署前后内容校验一致。汇率刷新、每日备份与原运行机密保留；Codex 聊天定时巡检保持用户设置的暂停状态。
 - 回滚备份：`/var/backups/quickprice/grok-phase1-2364f0b-20261014T021351Z`。回滚旧 dist 时同时恢复备份里的 Nginx 配置。
+- 2026-10-14 审查在独立本地环境复测：`npm test` 84 通过、2 跳过。提示动画结束后，1440×900 与 1000×800 的提示底边在导出按钮上方约 23px，复制和导出都能点到；375×667、390×844 的底栏按钮在提示出现后仍能点到。没有再次部署，也没有改生产商品库。
