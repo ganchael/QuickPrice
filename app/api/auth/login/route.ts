@@ -1,3 +1,4 @@
+import { accountByName } from '@/lib/accounts';
 import { authJson, checkCredentials, consumeLoginAttempt, isSameOrigin, startSession } from '@/app/account-auth';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
@@ -14,7 +15,10 @@ export async function POST(request: Request) {
   try {
     const attempt = await consumeLoginAttempt(request);
     if (!attempt.allowed) return authJson({ error: '尝试次数过多，请 15 分钟后再试。' }, 429, { 'Retry-After': String(attempt.retryAfter) });
-    if (!await checkCredentials(username, password)) return authJson({ error: '账号或密码不正确。' }, 401);
-    return authJson({ ok: true }, 200, { 'Set-Cookie': await startSession(request, attempt.key) });
+    const result = await checkCredentials(username, password);
+    if (result === 'unconfigured') return authJson({ error: '该账号暂未开通。' }, 503);
+    if (result !== 'ok') return authJson({ error: '账号或密码不正确。' }, 401);
+    const account = accountByName(username)!;
+    return authJson({ ok: true, userId: account.userId, displayName: account.displayName, priceType: account.priceType }, 200, { 'Set-Cookie': await startSession(request, attempt.key, account.userId) });
   } catch { return authJson({ error: '暂时无法登录，请稍后重试。' }, 503); }
 }

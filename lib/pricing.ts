@@ -1,6 +1,7 @@
 import { formatUsdtCents, formatUsdtPlain, rateUnits, usdtCents } from './quote-export.ts';
 export type Product = { id: string; shortName: string; name: string; specification: string; unit: string; category: string; price: string; aliases: string[] };
-export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none' };
+export type QuoteSnapshot = { shortName: string; name: string; specification: string; unit: string; priceType: 'sales' | 'cost' };
+export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none'; manualPrice?: boolean; snapshot?: QuoteSnapshot | null };
 export const productsSeed: Product[] = [
   { id: 'gnd10', name: 'GND10', shortName: 'GND10', specification: '', unit: '件', category: 'GND 系列', price: '75.00', aliases: [] },
   { id: 'tsm5', name: 'TSM5', shortName: 'TSM5', specification: '', unit: '件', category: 'TSM 系列', price: '240.00', aliases: [] },
@@ -25,12 +26,13 @@ export function moneyCents(value: string): number | null {
   return Number.isSafeInteger(n) && n >= 0 && n <= 99999999 ? n : null;
 }
 export function lineTotal(line: QuoteLine): number | null {
+  if (line.snapshot === null) return null;
   const qty = quantityValue(line.quantity), cents = moneyCents(line.price);
   if (!line.productId || qty === null || cents === null) return null;
   const result = qty * cents;
   return Number.isSafeInteger(result) ? result : null;
 }
-export function parseQuote(text: string, products: Product[]): QuoteLine[] {
+export function parseQuote(text: string, products: Product[], options?: { priceType?: 'sales' | 'cost' }): QuoteLine[] {
   const entries = text.split(/[\n\r;；,，]+/).map(x => x.trim()).filter(Boolean);
   if (entries.length > MAX_LINES) throw new Error('每次最多支持 200 项，请分批计价。');
   return entries.map((source, index) => {
@@ -43,8 +45,18 @@ export function parseQuote(text: string, products: Product[]): QuoteLine[] {
     const quantity = (match?.[2] ?? '').replace(/\s*(个|件|套|支|只|盒|瓶)$/, '').trim();
     const candidates = products.filter(p => productTerms(p).some(n => normalize(n) === parsed));
     const product = candidates.length === 1 ? candidates[0] : undefined;
-    return { id: `parsed-${index}`, source, parsed, productId: product?.id ?? '', quantity, price: product?.price ?? '', match: product ? 'exact' : 'none' };
+    const priceType = options?.priceType;
+    return { id: `parsed-${index}`, source, parsed, productId: product?.id ?? '', quantity, price: product ? unitPrice(product, priceType) : '', match: product ? 'exact' : 'none', manualPrice: false, snapshot: product && priceType ? lineSnapshot(product, priceType) : undefined };
   });
+}
+function unitPrice(product: Product, priceType?: 'sales' | 'cost') {
+  const priced = product as Product & { salesPrice?: string | null; costPrice?: string | null; costStatus?: string };
+  if (priceType === 'cost') return priced.costStatus === 'confirmed' && priced.costPrice ? priced.costPrice : '';
+  if (priceType === 'sales') return priced.salesPrice ?? product.price;
+  return product.price;
+}
+export function lineSnapshot(product: Product, priceType: 'sales' | 'cost'): QuoteSnapshot {
+  return { shortName: product.shortName, name: product.name, specification: product.specification, unit: product.unit, priceType };
 }
 export function summarize(lines: QuoteLine[]) {
   const valid = lines.filter(l => lineTotal(l) !== null);
@@ -53,6 +65,7 @@ export function summarize(lines: QuoteLine[]) {
 }
 export function money(cents: number) { return (cents / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 export function issue(line: QuoteLine): string {
+  if (line.snapshot === null) return '原规格或单位无法确认，请重新选择商品';
   if (!line.productId) return '请选择产品，暂未计入';
   if (quantityValue(line.quantity) === null) return '数量需为 1–999999 的整数';
   if (moneyCents(line.price) === null) return '单价需为 0–999999.99，最多两位小数';
@@ -74,7 +87,7 @@ export function searchProducts(products: Product[], query: string): Product[] {
   return products.filter(p => terms.every(t => normalize([p.shortName, p.name, p.specification, p.category, ...p.aliases].join(' ')).includes(t)));
 }
 const USDT_NOTE = 'USDT 单价按人民币单价换算并四舍五入到分，行金额为单价乘数量，合计为各行金额之和。';
-function lineUsdtCents(line: QuoteLine, rate: string): bigint | null {
+export function lineUsdtCents(line: QuoteLine, rate: string): bigint | null {
   const unitCents = moneyCents(line.price);
   const qty = quantityValue(line.quantity);
   if (lineTotal(line) === null || unitCents === null || qty === null) return null;
@@ -93,22 +106,44 @@ function csvUnitPrice(price: string): string {
   const cents = moneyCents(price);
   return cents === null ? price : (cents / 100).toFixed(2);
 }
-export function quoteText(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置') {
+function described(line: QuoteLine, products: Product[]) {
+  if (line.snapshot) {
+    const snap = line.snapshot;
+    const short = snap.shortName.trim() && normalize(snap.shortName) !== normalize(snap.name) ? snap.shortName.trim() : '';
+    return { label: [short, snap.name, snap.specification].filter(Boolean).join(' · '), unit: snap.unit || '件', name: snap.name, shortName: snap.shortName || snap.name, specification: snap.specification, category: '' };
+  }
+  const product = products.find(item => item.id === line.productId);
+  return { label: product ? productLabel(product) : line.source, unit: product?.unit || '件', name: product?.name ?? '', shortName: product ? productDisplayName(product) : '', specification: product?.specification ?? '', category: product?.category ?? '' };
+}
+function assertOnePriceType(lines: QuoteLine[], priceType: 'sales' | 'cost') {
+  if (lines.some(line => line.snapshot && line.snapshot.priceType !== priceType)) throw new Error('同一清单不能混用销售价和成本价。');
+}
+export function quoteText(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置', options?: { priceType?: 'sales' | 'cost' }) {
   if (rate !== undefined && rateUnits(rate) === null) throw new Error('请填写有效汇率：1 USDT 对应的人民币金额，最多 6 位小数。');
+  const priceType = options?.priceType ?? 'sales';
+  assertOnePriceType(lines, priceType);
   const s = summarize(lines);
   const usdtTotal = rate === undefined ? null : quoteUsdtCents(lines, rate);
-  return ['多肽报价清单', ...lines.map((l, i) => {
-    const p = products.find(p => p.id === l.productId);
+  const title = priceType === 'cost' ? '内部成本清单' : '多肽报价清单';
+  const totalLabel = priceType === 'cost' ? (s.pending ? '已确认成本合计' : '成本合计') : (s.pending ? '已确认项目合计' : '合计');
+  const priceLabel = priceType === 'cost' ? '成本单价 ¥' : '¥';
+  return [title, ...lines.map((l, i) => {
+    const describedLine = described(l, products);
     const total = lineTotal(l);
     const usdt = rate === undefined ? null : lineUsdtCents(l, rate);
-    return `${i + 1}. ${p ? productLabel(p) : l.source}\n   ${l.quantity || '待补充'} ${p?.unit || '件'} × ¥${moneyCents(l.price) === null ? '待补充' : money(moneyCents(l.price)!)} = ${total === null ? '待完善（未计入）' : '¥' + money(total)}${usdt !== null ? `\n   折合：${formatUsdtCents(usdt)} USDT` : ''}`;
-  }), '', `${s.pending ? '已确认项目合计' : '合计'}：¥${money(s.cents)}`, ...(rate !== undefined ? [`折合${s.pending ? '已确认' : ''}合计：${usdtTotal === null ? '金额超限' : formatUsdtCents(usdtTotal)} USDT`, `汇率：1 USDT = ¥${rate.trim()}（${rateSource}）`, USDT_NOTE] : []), `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
+    const unitCents = moneyCents(l.price);
+    const unitUsdt = rate === undefined || unitCents === null ? null : usdtCents(unitCents, rate);
+    return `${i + 1}. ${describedLine.label}\n   ${l.quantity || '待补充'} ${describedLine.unit} × ${priceLabel}${unitCents === null ? '待补充' : money(unitCents)} = ${total === null ? '待完善（未计入）' : '¥' + money(total)}${usdt !== null ? `\n   折合：${formatUsdtCents(usdt)} USDT${unitUsdt !== null ? `（单价 ${formatUsdtCents(unitUsdt)} USDT）` : ''}` : ''}`;
+  }), '', `${totalLabel}：¥${money(s.cents)}`, ...(rate !== undefined ? [`折合${s.pending ? '已确认' : ''}合计：${usdtTotal === null ? '金额超限' : formatUsdtCents(usdtTotal)} USDT`, `汇率：1 USDT = ¥${rate.trim()}（${rateSource}）`, USDT_NOTE] : []), `${s.count} 项 · 已计价数量 ${s.quantity}${s.pending ? ` · ${s.pending} 项待完善` : ''}`].join('\n');
 }
-export function quoteCsv(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置') {
+export function quoteCsv(lines: QuoteLine[], products: Product[], rate?: string, rateSource = '手动设置', options?: { priceType?: 'sales' | 'cost' }) {
   if (rate !== undefined && rateUnits(rate) === null) throw new Error('请填写有效汇率。');
+  const priceType = options?.priceType ?? 'sales';
+  assertOnePriceType(lines, priceType);
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   const s = summarize(lines);
-  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', '单价（元）', '金额（元）', '状态'], ...lines.map((l, i) => { const p = products.find(p => p.id === l.productId); return [i + 1, l.source, p ? productDisplayName(p) : '', p?.name ?? '', p?.specification ?? '', p?.category ?? '', p?.unit ?? '', l.quantity, csvUnitPrice(l.price), lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
+  const priceHeader = priceType === 'cost' ? '成本单价（元）' : '单价（元）';
+  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', priceHeader, '金额（元）', '状态'], ...lines.map((l, i) => { const describedLine = described(l, products); const product = products.find(p => p.id === l.productId); return [i + 1, l.source, describedLine.shortName, describedLine.name, describedLine.specification, l.snapshot ? '' : product?.category ?? '', describedLine.unit, l.quantity, csvUnitPrice(l.price), lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', priceType === 'cost' ? '已确认成本合计' : '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
   if (rate !== undefined) {
     rows[0].push('单价（USDT）', '金额（USDT）', '汇率（人民币/USDT）');
     lines.forEach((line, i) => {
@@ -121,5 +156,6 @@ export function quoteCsv(lines: QuoteLine[], products: Product[], rate?: string,
     rows[rows.length - 1].push('', quoteTotal === null ? '' : formatUsdtPlain(quoteTotal), rate.trim());
     rows.push(['汇率来源', rateSource], ['换算说明', '1 USDT = ' + rate.trim() + ' 人民币；' + USDT_NOTE]);
   }
+  if (priceType === 'cost') rows.unshift(['内部成本清单']);
   return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
 }
