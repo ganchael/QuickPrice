@@ -339,7 +339,34 @@ h2 { font-size: 17px; font-weight: 600; letter-spacing: -.35px; }
 .login-submit { width: 100%; min-height: 48px; margin-top: 27px; justify-content: center; gap: 10px; font-size: 16px; }
 .login-note { margin: 20px 0 0; color: #89919d; font-size: 13px; text-align: center; }
 .login-footer { margin: 30px 0 0; color: #929ba7; font-size: 13px; }
-button.account-link { background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; }
+button.account-link, .account-menu summary.account-link { background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; }
+.account-menu { position: relative; }
+.account-menu summary { list-style: none; }
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu-panel { position: absolute; right: 0; z-index: 45; display: grid; min-width: 148px; margin-top: 6px; padding: 6px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgba(26,74,101,.16); }
+.account-menu-panel button { min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; color: var(--foreground); }
+.price-pair { display: flex; flex-wrap: wrap; gap: 6px; }
+.price-pair button { display: flex; flex-direction: column; align-items: flex-start; min-height: 44px; min-width: 76px; padding: 4px 6px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
+.price-pair small, .comparison-card dt { color: var(--muted-foreground); font-size: 11px; }
+.filter-row, .catalog-secondary-actions, .import-target, .settings-account .import-actions, .price-editor-footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filter-row button { min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: transparent; }
+.filter-row button[aria-pressed=true] { border-color: var(--primary); color: var(--primary); background: var(--accent); }
+.comparison-list, .price-preview-list { display: grid; gap: 10px; }
+.comparison-card, .price-preview-card, .price-identity { border: 1px solid var(--border); border-radius: 14px; padding: 12px; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.comparison-card header, .price-preview-card header, .comparison-card dl { display: flex; justify-content: space-between; gap: 8px; margin: 0; }
+.comparison-card dl { display: grid; grid-template-columns: 1fr 1fr; }
+.price-dialog[data-slot=dialog-content] { max-width: 560px; max-height: min(92dvh, 860px); overflow: auto; }
+.price-editor-footer { position: sticky; bottom: 0; padding-top: 10px; background: var(--card); }
+.include-prices { display: flex; gap: 8px; align-items: flex-start; }
+tr.is-highlight { outline: 2px solid var(--primary); }
+.settings-account { display: grid; gap: 8px; margin: 4px 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+@media (min-width: 741px) {
+  .comparison-card { grid-template-columns: minmax(0,1.4fr) minmax(0,.7fr) minmax(0,.7fr) minmax(0,.6fr) auto; align-items: center; }
+  .comparison-card dl { display: contents; }
+}
+@media (max-width: 740px) {
+  .account-menu { display: none; }
+}
 @media (max-width: 480px) { .login-page { padding: 32px 20px; } .login-card { padding: 28px 24px; } .login-brand { margin-bottom: 26px; } }
 
 /* Touch-first pricing: readable product identities, focused selection, and reachable actions. */

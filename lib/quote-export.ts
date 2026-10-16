@@ -33,7 +33,8 @@ export function usdtAmount(cnyCents: number, rate: string): string | null {
   return cents === null ? null : formatUsdtCents(cents);
 }
 
-export function quoteFilename(date = new Date()): string {
+export function quoteFilename(date = new Date(), kind: 'sales' | 'cost' | 'comparison' = 'sales'): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `多肽报价清单_${date.getFullYear()}年${pad(date.getMonth() + 1)}月${pad(date.getDate())}日_${pad(date.getHours())}时${pad(date.getMinutes())}分.csv`;
+  const title = kind === 'cost' ? '内部成本清单' : kind === 'comparison' ? '内部售价成本对比' : '多肽报价清单';
+  return `${title}_${date.getFullYear()}年${pad(date.getMonth() + 1)}月${pad(date.getDate())}日_${pad(date.getHours())}时${pad(date.getMinutes())}分.csv`;
 }
