@@ -6,15 +6,18 @@
 - 用户选择先用公网 IP，当前没有 TLS；HTTP 下通过应用内的 `lib/legacy-clipboard.ts` 提供点击后直接复制的兼容方式，浏览器阻止时仍需手动复制。
 - 原 Sites 入口：https://quickprice-assistant.ganchael1.chatgpt.site 。其配置保留在 `.openai/hosting.json`，与新服务器数据不会自动同步。
 - D1 绑定：`DB`。
-- 应用账号：`888`，商品库归属：`account:888`。
-- 必要机密：`QUICKPRICE_PASSWORD_RECORD`，格式为 JSON 对象，含 `salt` 和 `hash`。
+- 应用账号：`888`（默认销售价）和 `111`（默认成本价）。商品库仍只有一行，归属 `account:888`，两个账号共用。不要另建 `account:111` 的商品 JSON。
+- `888` 的机密保持 `QUICKPRICE_PASSWORD_RECORD`，格式为 JSON 对象，含 `salt` 和 `hash`。不要替换整份运行环境文件。
+- `111` 使用单独的 `QUICKPRICE_COST_PASSWORD_RECORD`，格式相同。未配置时登录返回“该账号暂未开通。”，`888` 不受影响。仓库不保存 `111` 的初始口令。生成记录：`printf %s 'your-password' | node scripts/hash-password.mjs`，把打印的 JSON 写入服务器环境，不要提交。
 - 密码记录使用 PBKDF2-SHA256、100000 次迭代、16 字节随机盐及 32 字节结果，十六进制编码。实现见 `lib/auth-crypto.ts`。
 
 密码与记录应在部署平台的机密设置中配置，不写入 Git。新部署须自行设置密码；仓库不提供生产密码的恢复功能。
 
 ## 数据库
 
-新建数据库依次执行 `drizzle/0000_public_dexter_bennett.sql`、`0001_tricky_nightcrawler.sql`、`0002_rename_fixed_account.sql`、`0003_exchange_rate_cache.sql`，由迁移工具记录已执行版本；不要在已有生产库重复执行早期迁移。
+新建数据库依次执行 `drizzle/0000_public_dexter_bennett.sql`、`0001_tricky_nightcrawler.sql`、`0002_rename_fixed_account.sql`、`0003_exchange_rate_cache.sql`、`0004_cost_prices.sql`，由迁移工具记录已执行版本；不要在已有生产库重复执行早期迁移。
+
+`0004_cost_prices.sql` 只 `CREATE TABLE IF NOT EXISTS` 成本价、销售价更新时间、成本版本和变更批次，并种下一行 `shared-cost` 版本 0。可以重复执行。它不读、不改、不删 `catalogs`、会话或汇率缓存。已有生产库只增量执行这一份。`drizzle/0004_cost_prices_rollback.sql` 会删掉这四张新表，只用于独立环境演练；生产回滚应用时不要执行它，以便保留已录入的成本。
 
 `0003_exchange_rate_cache.sql` 使用 `CREATE TABLE IF NOT EXISTS` 创建独立缓存表。已有生产库只需增量执行此迁移；汇率 API 首次读写也会按需创建该表。它不删除或改写商品、会话或限流数据。
 
