@@ -88,15 +88,16 @@ function costOf(costs: CostRow[], id: string) {
 function salesCents(product: Product) {
   return product.price.trim() === '' ? null : moneyCents(product.price);
 }
-function viewCost(cost: CostRow | undefined, available: boolean): { status: CostStatus; cents: number | null; updatedAt: string | null } {
+function viewCost(cost: CostRow | undefined, available: boolean, fingerprint: string): { status: CostStatus; cents: number | null; updatedAt: string | null } {
   if (!available) return { status: 'error', cents: null, updatedAt: null };
   if (!cost || cost.cost_cents === null || cost.status === 'missing') return { status: 'missing', cents: null, updatedAt: cost?.updated_at ?? null };
-  if (cost.status === 'pending') return { status: 'pending', cents: cost.cost_cents, updatedAt: cost.updated_at };
+  if (cost.status === 'pending' || cost.spec_fingerprint !== fingerprint) return { status: 'pending', cents: cost.cost_cents, updatedAt: cost.updated_at };
   return { status: 'confirmed', cents: cost.cost_cents, updatedAt: cost.updated_at };
 }
 export function presentProducts(products: Product[], costs: CostRow[], metas: MetaRow[], available: boolean, priceType: PriceType): CatalogView[] {
   return products.map(product => {
-    const cost = viewCost(costOf(costs, product.id), available);
+    const fingerprint = specFingerprint(product.specification, product.unit);
+    const cost = viewCost(costOf(costs, product.id), available, fingerprint);
     const sales = salesCents(product);
     const view: CatalogView = {
       ...product,
@@ -105,7 +106,7 @@ export function presentProducts(products: Product[], costs: CostRow[], metas: Me
       costStatus: cost.status,
       costUpdatedAt: cost.updatedAt,
       salesUpdatedAt: metas.find(row => row.product_id === product.id)?.sales_updated_at ?? null,
-      specFingerprint: specFingerprint(product.specification, product.unit),
+      specFingerprint: fingerprint,
     };
     return { ...view, price: displayPrice(view, priceType) };
   });
@@ -324,7 +325,8 @@ export async function patchPrices(db: PriceDatabase, actor: AccountUser, product
   if (conflicts.length) throw conflict('云端价格已变化，请核对后再保存。', { conflicts });
   const salesChanges = !!sales && ((sales.clear && currentSales !== null) || (!sales.clear && currentSales !== sales.cents));
   const costMissing = !currentCost || currentCost.status === 'missing' || currentCost.cost_cents === null;
-  const costChanges = !!cost && ((cost.clear && !costMissing) || (!cost.clear && (currentCost?.status === 'pending' || currentCostCents !== cost.cents)));
+  const costPending = viewCost(currentCost, state.costAvailable, specFingerprint(product.specification, product.unit)).status === 'pending';
+  const costChanges = !!cost && ((cost.clear && !costMissing) || (!cost.clear && (costPending || currentCostCents !== cost.cents)));
   if (!salesChanges && !costChanges) {
     return { ok: true, idempotent: false, productId, revision: state.catalog.revision, costRevision: state.book?.revision ?? 0, updatedAt: state.catalog.updated_at, costUpdatedAt: state.book?.updated_at ?? null, changes: 0, batchId: '' };
   }
@@ -367,6 +369,10 @@ export async function applyMaster(db: PriceDatabase, actor: AccountUser, input: 
   const state = await load(db);
   const currentRevision = state.catalog?.revision ?? 0;
   if (input.catalogRevision !== currentRevision) throw conflict('另一台设备已更新商品库。请先同步最新数据，再重新保存；当前编辑内容仍保留。');
+  if (!state.costAvailable && state.products.some(prev => {
+    const next = products.find(item => item.id === prev.id);
+    return !next || specFingerprint(prev.specification, prev.unit) !== specFingerprint(next.specification, next.unit);
+  })) throw new PriceError('成本价加载失败，暂不能修改规格、单位或删除已有商品；请稍后同步后重试。', 503, { code: 'cost-unavailable' });
   const invalidated = products.flatMap(next => {
     const prev = state.products.find(item => item.id === next.id);
     if (!prev || specFingerprint(prev.specification, prev.unit) === specFingerprint(next.specification, next.unit)) return [];
@@ -381,12 +387,11 @@ export async function applyMaster(db: PriceDatabase, actor: AccountUser, input: 
   const requestId = input.requestId && REQUEST_ID.test(input.requestId) ? input.requestId : `master-${batchId}`;
   const canInvalidate = invalidated.length > 0 && state.costAvailable && !!state.book;
   const nextCostRevision = canInvalidate && state.book ? state.book.revision + 1 : (state.book?.revision ?? 0);
-  const warning = invalidated.length && !state.costAvailable ? '成本价加载失败，商品资料已保存，但未能把旧成本标为待确认。' : undefined;
   if (!state.costAvailable) {
     await writeCatalogOnly(db, json, nextRevision, now, state.catalog ? currentRevision : null);
-    return { ok: true, idempotent: false, revision: nextRevision, costRevision: 0, updatedAt: now, costUpdatedAt: null, changes: 1, batchId, costWarning: warning };
+    return { ok: true, idempotent: false, revision: nextRevision, costRevision: 0, updatedAt: now, costUpdatedAt: null, changes: 1, batchId };
   }
-  const result: WriteResult = { ok: true, idempotent: false, revision: nextRevision, costRevision: nextCostRevision, updatedAt: now, costUpdatedAt: canInvalidate ? now : state.book?.updated_at ?? null, changes: 1, batchId, costWarning: warning };
+  const result: WriteResult = { ok: true, idempotent: false, revision: nextRevision, costRevision: nextCostRevision, updatedAt: now, costUpdatedAt: canInvalidate ? now : state.book?.updated_at ?? null, changes: 1, batchId };
   const statements: Bound[] = [catalogWrite(db, json, nextRevision, now, state.catalog ? currentRevision : null)];
   if (canInvalidate && state.book) {
     statements.push(bookWrite(db, nextCostRevision, now, requestId, state.book.revision));
@@ -447,7 +452,7 @@ export async function commitPrices(db: PriceDatabase, actor: AccountUser, input:
         const baseline = current && current.status !== 'missing' ? current.cost_cents : null;
         const comparable = current?.status === 'pending' ? current.cost_cents : baseline;
         if (cost.baseline !== comparable) problems.push(`${product.name} 的成本已变化`);
-        else if (cost.clear || current?.status === 'pending' || comparable !== cost.cents) costUpdates.set(product.id, { cents: cost.cents, clear: cost.clear });
+        else if (cost.clear || viewCost(current, state.costAvailable, specFingerprint(product.specification, product.unit)).status === 'pending' || comparable !== cost.cents) costUpdates.set(product.id, { cents: cost.cents, clear: cost.clear });
       }
     } catch (error) { problems.push(error instanceof Error ? error.message : '价格不正确'); }
   }

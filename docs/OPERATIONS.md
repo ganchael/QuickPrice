@@ -42,6 +42,8 @@
 
 2026-10-14 已部署 Grok phase1 修复（main `2364f0b`），并补充桌面提示避让（`cec6b8a`）：手机底栏避让、短屏高度和明文 HTTP 下的复制兼容由应用提供，桌面提示根据固定报价操作区的实际高度避让。已从 `/etc/nginx/conf.d/quickprice.conf` 删除 `sub_filter` 注入以及两个 hotfix `location`，`nginx -t` 和 reload 通过；仓库 Nginx 配置同步为当前实际配置。站点继续使用明文 HTTP。`hotfix/` 留作历史恢复记录；回滚旧 dist 时必须一并恢复相匹配的旧 Nginx 配置。
 
+2026-10-17 已部署双账号 PR #4（main `5e6d8b9`），实际构建为 `37814a8`，包含成本故障防护及 CSV 品类修复。当前支持两账号共享新增商品、维护双价；888 默认销售计价，111 默认成本计价。最新备份与验收见文末和 `docs/HANDOFF.md`。
+
 ### workerd 的系统 CA 配置
 
 兼容 glibc loader 下的 workerd 未自动找到系统证书，曾导致服务器命令行可以访问 CoinGate，而应用内请求因 TLS 校验失败而不可用。已通过 `/etc/systemd/system/quickprice.service.d/ca.conf` 指定实际系统 CA 文件：
@@ -69,7 +71,7 @@ systemctl list-timers quickprice-backup.timer
 curl -I http://127.0.0.1/login
 ```
 
-这台服务器只有 1 GiB 内存，不要在在线应用旁执行构建。应在本地使用相同锁文件 `npm ci`、`npm run build`，将 `dist` 上传到服务器，再短暂停服务切换目录。macOS 打包用 `COPYFILE_DISABLE=1 tar --disable-copyfile -czf quickprice-dist.tgz dist`，避免 AppleDouble 文件被识别为额外 Worker 模块。发布前执行 `systemctl start quickprice-backup.service`，保留原 `dist` 用于回滚；切换后运行 `systemctl restart quickprice`。不覆盖 `/var/lib/quickprice`、`/etc/quickprice` 或备份目录。
+这台服务器只有 1 GiB 内存，不要在在线应用旁执行构建。应在本地使用相同锁文件 `npm ci`、`npm run build`，将 `dist` 上传到服务器，再短暂停服务切换目录。macOS 打包用 `COPYFILE_DISABLE=1 tar --no-xattrs --disable-copyfile -czf quickprice-dist.tgz dist`，避免 AppleDouble 文件及扩展属性混入发布包。发布前执行 `systemctl start quickprice-backup.service`，保留原 `dist` 用于回滚；切换后运行 `systemctl restart quickprice`。不覆盖 `/var/lib/quickprice`、`/etc/quickprice` 或备份目录。
 
 2026-09-29 曾从原 Sites 恢复完整 300 项商品库，包含此前网页手动新增的记录；其后继续在线编辑。截至 2026-10-03，本次发布前后核对为 301 项、服务器版本 8。新增汇率缓存表和替换构建没有重置商品库。后续发布必须保留服务器现有数据库，不能再次用初始快照、原价目表或历史备份覆盖。
 
@@ -127,7 +129,7 @@ gh run list --workflow okx-rate.yml --limit 5
 
 “行情来源”在新标签页打开对应供应商的前端页面：KuCoin 使用 [中文 USDT 行情页](https://www.kucoin.com/zh-hant/price/USDT)，OKX 使用上述 USDT/CNY 换算页。KuCoin 官网默认美元计价，`/converter/USDT-CNY` 目前返回 404，价格页 `?currency=CNY` 参数实测不会切换计价货币，因此不使用这些地址冒充人民币页面。接口地址仍用于取数和缓存校验，展示链接单独映射到网页，不影响汇率数值。
 
-成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求。页面可见时每 60 秒读取同源接口，恢复前台立即读取；到欧易获取时间满 10 分钟时主动标记缓存。手动修改会取消当前页面请求并暂停自动覆盖，有效汇率写入本机 `quickprice:manual-usdt-cny-rate:v1`，刷新后恢复。按钮在手动状态下显示“恢复自动”，点击后清除该记录并重新读取行情。迟到结果不会覆盖手动值。
+成功结果在服务内缓存 60 秒；点击“最新”调用 `/api/exchange-rate?refresh=1`，绕过一分钟缓存重新读取已经发布的报价，不会立即触发 GitHub 任务。并发刷新合并为一次上游请求。页面可见时每 60 秒读取同源接口，恢复前台立即读取；到欧易获取时间满 10 分钟时主动标记缓存。手动修改会取消当前页面请求并暂停自动覆盖，有效汇率写入本机 `quickprice:manual-usdt-cny-rate:v1:<accountId>`，刷新后恢复；旧的无账号全局键只在 888 下迁移一次，111 不继承。按钮在手动状态下显示“恢复自动”，点击后清除该账号记录并重新读取行情。迟到结果不会覆盖手动值。
 
 成功参考汇率写入独立 `exchange_rate_cache` 表，并保存在当前浏览器。服务器与浏览器只接受最多 24 小时的有效缓存，校验来源白名单和时间。2026-10-10 服务端缓存键升级为 `USDT-CNY:okx-scheduled-v3`，浏览器继续使用 `quickprice:last-usdt-cny-market-rate:v2`，两端均拒绝 CoinGate 来源。服务重启会从 D1 读取成功值；`delivery: scheduled` 保留定时抓取来源及时间，延迟或失败时明确标注缓存。没有可用缓存时返回 503，允许手动输入；不会凭空填入固定汇率或将过期值宣称为最新。
 
@@ -188,3 +190,16 @@ Git 历史保留此前源码变更及历史商品快照。仓库还保存阿里�
 - 公网 Chromium 浏览器的 375×667 触屏、390×844 触屏与 1440×900 桌面验收通过：原生 HTTP 复制返回成功、CSV 导出含 USDT、手动汇率刷新保留并能恢复自动、新建报价能清空临时清单。提示最终显示在操作区上方，按钮中心可命中且页面无横向溢出。
 - 独立本地测试库确认商品删除成功、过期 revision 写入返回 409；生产仅查看商品库，未新增或删除商品。
 - 公网汇率接口返回 200、真实欧易 `fetchedAt` 的年龄小于 10 分钟；quickprice、Nginx、汇率 timer 与每日备份 timer 均 active。响应有 CSP 和 `X-Frame-Options: DENY`，没有 HSTS。当前页面不再加载 hotfix CSS/JS。
+
+### 2026-10-17 双账号部署验收
+
+- PR #4 main `5e6d8b9` 已上线，实际应用构建 `37814a8`，包含 `289beab` 成本故障保护和 CSV 品类快照修复；后续先合入 `codex/dual-price-deployment-guard` 再构建，避免丢失补修。
+- 升级前原应用、原 runtime env、持久目录与一致 SQLite 快照：`/var/backups/quickprice/dual-price-289beab-20261016T173709Z`，root 0700。回退双账号功能时恢复该备份的旧 dist 和 runtime env，保留新增表与此后真实价格，不恢复整份旧数据库。
+- CSV 补修前的双账号构建及源码：`/var/backups/quickprice/dual-price-csv-37814a8-20261016T174430Z`。只回退该补修时恢复这里的 dist／源码，环境和数据库不变。
+- 仅增量执行 `0004_cost_prices.sql`，先在一致快照演练重复执行，再迁移生产；销售库原始 JSON、301 条商品、版本 8 及更新时间前后相同，规范化 SHA-256 为 `af4e2b0dc6edefe19745f994eaadc171c188c5213513da6cfc8e47f1cffcd947`。成本记录 0、版本 0、改价批次 0。
+- 仅追加 111 的密码哈希配置，现有 runtime env 前缀完整保留，权限 root:quickprice 0640。未生成额外密钥或恢复已暂停的 Codex 巡检；Nginx、glibc 包装和原依赖不变。
+- 98 项测试通过、2 项原有条件跳过，类型检查、相关 lint、本机构建通过。A25 连续补录全队列、A30 两个真实浏览器会话自动同步（写入后约 17 秒可见、观察超过 35 秒）、A31 111 上传双价 xlsx 并从导入创建新品，均已用合成数据在独立本地库补测。
+- 公网 888 和 111 登录／切换成功，均为同一 301 条商品，默认销售／成本类型正确，111 的未录成本显示待录入且无删除按钮。双价新增／编辑表单存在并可操作，验证时取消，不写测试商品。
+- 公网原生 HTTP 复制返回成功，销售 CSV 没有成本列，成本 CSV 标题与单价类型明确，USDT 与显示一致；成本验收使用临时清单行价，未保存到成本库。最终 CSV 已恢复品类。
+- 手机 375×667、390×844 触屏及桌面工作台验收通过；默认清单、账户切换、错误密码保留、清空报价、CSV 与手动汇率等在独立环境复测。浏览器尺寸模拟不替代实体 iPhone 硬件兼容保证。
+- 服务器 Python 的 SQLite 连接没有 `backup()`，发布和演练快照须使用已安装的 `/usr/bin/sqlite3` `.backup`，如现有备份 service；生产首次演练在迁移前遇到此兼容问题，已自动恢复，随后用上述方式成功上线。
