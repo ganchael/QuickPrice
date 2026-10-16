@@ -7,17 +7,21 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } fr
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Toaster, toast } from '@/components/ui/toast';
 import { CatalogManager } from '@/components/catalog-manager';
+import { AccountSwitch } from '@/components/account-switch';
+import { accountLabel } from '@/lib/accounts';
+import { PRICE_SYNC_INTERVAL_MS } from '@/lib/price-domain';
 import { useMobileViewport } from '@/hooks/use-mobile-viewport';
 import { ProductPicker } from '@/components/product-picker';
 import { TypingTitle } from '@/components/typing-title';
-import { quoteFilename, rateUnits } from '@/lib/quote-export';
+import { formatUsdtCents, quoteFilename, rateUnits, usdtCents } from '@/lib/quote-export';
 import { clearManualRate, readManualRate, writeManualRate } from '@/lib/manual-rate';
 import { installLegacyClipboard } from '@/lib/legacy-clipboard';
 import { OKX_RATE_PAGE, KUCOIN_RATE_URL, KUCOIN_RATE_PAGE } from '@/lib/live-rate';
-import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, issue, quoteText, quoteCsv, quoteUsdtAmount, productLabel, productDisplayName, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
+import { parseQuote, summarize, money, moneyCents, quantityValue, lineTotal, lineUsdtCents, issue, quoteText, quoteCsv, quoteUsdtAmount, productLabel, productDisplayName, lineSnapshot, MAX_LINES, type Product, type QuoteLine } from '@/lib/pricing';
 
-type CatalogResponse = { ownerId: string; products: Product[]; revision: number; updatedAt: string | null; error?: string };
-type Props = { user: { userId: string; displayName: string } };
+type PricedProduct = Product & { salesPrice?: string | null; costPrice?: string | null; costStatus?: 'missing' | 'confirmed' | 'pending' | 'error'; specFingerprint?: string };
+type CatalogResponse = { ownerId: string; actorId?: string; products: PricedProduct[]; revision: number; costRevision?: number; updatedAt: string | null; costAvailable?: boolean; costError?: string; error?: string };
+type Props = { user: { userId: string; displayName: string; priceType: 'sales' | 'cost'; canEditMaster: boolean } };
 type RateResponse = { rate: string; updatedAt: string; fetchedAt?: string; source: string; kind: string; sourceUrl: string; delivery?: 'scheduled'; warning?: string; error?: string };
 const RATE_STORAGE_KEY = 'quickprice:last-usdt-cny-market-rate:v2';
 const RATE_STORAGE_MAX_AGE = 24 * 60 * 60 * 1000;
@@ -78,7 +82,7 @@ export default function QuickPriceApp({ user }: Props) {
   const rateAbort = useRef<AbortController | null>(null);
   const refreshRate = useCallback(async (force = false, background = false) => {
     if (background && (manualRate.current || document.visibilityState !== 'visible' || rateAbort.current || document.activeElement?.id === 'usdt-rate')) return;
-    if (!background) { manualRate.current = false; setManualMode(false); clearManualRate(); }
+    if (!background) { manualRate.current = false; setManualMode(false); clearManualRate(undefined, user.userId); }
     const request = ++rateRequest.current;
     rateAbort.current?.abort();
     const controller = new AbortController();
@@ -115,7 +119,7 @@ export default function QuickPriceApp({ user }: Props) {
       clearTimeout(timeout);
       if (request === rateRequest.current) { rateAbort.current = null; setRateLoading(false); }
     }
-  }, []);
+  }, [user.userId]);
   useEffect(() => { installLegacyClipboard(); }, []);
   useEffect(() => {
     const actions = document.querySelector('.quote-actions');
@@ -128,7 +132,7 @@ export default function QuickPriceApp({ user }: Props) {
     return () => { observer.disconnect(); root.style.removeProperty('--quote-actions-height'); };
   }, []);
   useEffect(() => {
-    const savedManual = readManualRate();
+    const savedManual = readManualRate(undefined, user.userId);
     const previous = storedRate();
     if (savedManual) {
       manualRate.current = true; setManualMode(true);
@@ -174,7 +178,7 @@ export default function QuickPriceApp({ user }: Props) {
   const updateRate = (value: string) => {
     manualRate.current = true;
     setManualMode(true);
-    writeManualRate(value);
+    writeManualRate(value, undefined, user.userId);
     rateRequest.current++;
     rateAbort.current?.abort();
     rateAbort.current = null;
@@ -186,38 +190,71 @@ export default function QuickPriceApp({ user }: Props) {
   const [isExample, setIsExample] = useState(false);
   const [ready, setReady] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [costRevision, setCostRevision] = useState(0);
+  const [costAvailable, setCostAvailable] = useState(true);
   const [ownerId, setOwnerId] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [cloudError, setCloudError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const viewEpoch = useRef(0);
+  const activityRef = useRef({ dirty: false, kind: 'idle', save: async () => false });
   const refreshCatalog = useCallback(async () => {
+    const seen = viewEpoch.current;
     try {
       const response = await fetch('/api/catalog', { cache: 'no-store' });
       const data = await response.json() as CatalogResponse;
+      if (seen !== viewEpoch.current) return;
       if (response.status === 401) { window.location.replace('/login'); return; }
       if (!response.ok) throw new Error(data.error || '商品库加载失败。');
-      if (data.ownerId !== user.userId) throw new Error('登录账号已改变，请刷新页面后重新加载对应商品库。');
+      if (data.actorId && data.actorId !== user.userId) { window.location.replace('/'); return; }
       setOwnerId(data.ownerId);
-      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setUpdatedAt(data.updatedAt); setReady(true); setCloudError('');
+      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setCostRevision(data.costRevision ?? 0); setCostAvailable(data.costAvailable !== false); setUpdatedAt(data.updatedAt); setReady(true); setCloudError('');
       setSelected(current => data.products.some((p: Product) => p.id === current) ? current : data.products[0]?.id ?? '');
     return data.products;
-    } catch (e) { setCloudError((e as Error).message); setReady(false); return undefined; }
-  }, [user]);
+    } catch (e) { if (seen === viewEpoch.current) { setCloudError((e as Error).message); setReady(false); } return undefined; }
+  }, [user.userId]);
   useEffect(() => { const pending = setTimeout(() => { void refreshCatalog(); }, 0); return () => clearTimeout(pending); }, [refreshCatalog]);
+  useEffect(() => {
+    const key = 'quickprice:active-account';
+    try { localStorage.setItem(key, user.userId); } catch { /* ignore */ }
+    const onStorage = (event: StorageEvent) => { if (event.key === key && event.newValue && event.newValue !== user.userId) window.location.replace('/'); };
+    const probe = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const session = await fetch('/api/auth/session', { cache: 'no-store' });
+        if (session.status === 401) { window.location.replace('/login'); return; }
+        const identity = await session.json() as { userId?: string };
+        if (identity.userId && identity.userId !== user.userId) window.location.replace('/');
+        const versions = await fetch('/api/price-versions', { cache: 'no-store' });
+        if (!versions.ok) { setCloudError('同步失败／数据截至'); return; }
+        const data = await versions.json() as { actorId?: string; revision?: number; costRevision?: number };
+        if (data.actorId !== user.userId) return;
+        if (data.revision !== revision || data.costRevision !== costRevision) void refreshCatalog();
+      } catch { setCloudError('同步失败／数据截至'); }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void probe(); };
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void probe(); }, PRICE_SYNC_INTERVAL_MS);
+    return () => { window.removeEventListener('storage', onStorage); document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer); };
+  }, [user.userId, revision, costRevision, refreshCatalog]);
   const saveCatalog = async (next: Product[]) => {
-    if (!ready || ownerId !== user.userId) throw new Error('请先登录并加载云端商品库。');
+    if (!ready || !user.canEditMaster) throw new Error('当前账号不能修改已有商品资料。');
     setSaving(true);
     try {
-      const response = await fetch('/api/catalog', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ products: next, revision, ownerId }) });
+      const products = next.map(product => ({ id: product.id, shortName: product.shortName, name: product.name, specification: product.specification, unit: product.unit, category: product.category, price: (product as PricedProduct).salesPrice ?? product.price, aliases: product.aliases }));
+      const response = await fetch('/api/catalog', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ products, revision, costRevision, ownerId: ownerId || 'account:888', expectedActorId: user.userId }) });
       const data = await response.json() as CatalogResponse;
       if (response.status === 401) throw new Error('登录已过期，请重新登录后再保存。');
       if (!response.ok) throw new Error(data.error || '保存失败，请重试。');
-      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setUpdatedAt(data.updatedAt); setCloudError('');
+      setProducts(data.products); setCategory(current => current === 'all' || data.products.some(p => p.category === current) ? current : 'all'); setRevision(data.revision); setCostRevision(data.costRevision ?? costRevision); setUpdatedAt(data.updatedAt); setCloudError('');
       setSelected(current => data.products.some((p: Product) => p.id === current) ? current : data.products[0]?.id ?? '');
     } finally { setSaving(false); }
   };
   const [loggingOut, setLoggingOut] = useState(false);
   const signOut = async () => {
+    viewEpoch.current += 1;
     setLoggingOut(true);
     try {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
@@ -237,12 +274,13 @@ export default function QuickPriceApp({ user }: Props) {
   const showResults = () => document.getElementById('quote-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const patchLine = (lineId: string, patch: Partial<QuoteLine>) => { setLines(ls => ls.map(l => l.id === lineId ? { ...l, ...patch } : l)); setIsExample(false); };
   const selectProduct = (line: QuoteLine, productId: string) => {
-    const product = products.find(p => p.id === productId);
-    patchLine(line.id, { productId, price: product?.price ?? '', match: product ? 'manual' : 'none' });
+    const product = products.find(p => p.id === productId) as PricedProduct | undefined;
+    const price = !product ? '' : user.priceType === 'cost' ? (product.costStatus === 'confirmed' ? product.costPrice ?? '' : '') : (product.salesPrice ?? product.price);
+    patchLine(line.id, { productId, price, match: product ? 'manual' : 'none', manualPrice: false, snapshot: product ? lineSnapshot(product, user.priceType) : null });
   };
   const calculate = () => {
     if (!text.trim()) { setInputError('请先输入产品型号和数量。'); return; }
-    try { const next = parseQuote(text, products); setLines(next); setIsExample(false); setInputError(''); const s = summarize(next); toast.add({ title: `已解析 ${s.count} 项${s.pending ? `，${s.pending} 项需要完善` : '，计价完成'}`, type: s.pending ? 'warning' : 'success' }); }
+    try { const next = parseQuote(text, products, { priceType: user.priceType }); setLines(next); setIsExample(false); setInputError(''); const s = summarize(next); toast.add({ title: `已解析 ${s.count} 项${s.pending ? `，${s.pending} 项需要完善` : '，计价完成'}`, type: s.pending ? 'warning' : 'success' }); }
     catch (error) { setInputError((error as Error).message); }
   };
   const startNewQuote = () => {
@@ -256,7 +294,9 @@ export default function QuickPriceApp({ user }: Props) {
   const addLine = () => {
     if (!selectedProduct || quantityValue(addQuantity) === null) { setInputError('请选择产品，并填写 1–999999 的整数数量。'); return; }
     if (lines.length >= MAX_LINES) { setInputError('每份清单最多支持 200 项。'); return; }
-    setLines(ls => [...ls, { id: `manual-${++id.current}`, source: `${productDisplayName(selectedProduct)} × ${addQuantity}`, parsed: selectedProduct.name, productId: selected, quantity: addQuantity, price: selectedProduct.price, match: 'manual' }]); setIsExample(false); setInputError(''); toast.add({ title: `已添加 ${selectedProduct.name} × ${addQuantity}`, type: 'success' });
+    const chosen = selectedProduct as PricedProduct;
+    const price = user.priceType === 'cost' ? (chosen.costStatus === 'confirmed' ? chosen.costPrice ?? '' : '') : (chosen.salesPrice ?? chosen.price);
+    setLines(ls => [...ls, { id: `manual-${++id.current}`, source: `${productDisplayName(selectedProduct)} × ${addQuantity}`, parsed: selectedProduct.name, productId: selected, quantity: addQuantity, price, match: 'manual', manualPrice: false, snapshot: lineSnapshot(chosen, user.priceType) }]); setIsExample(false); setInputError(''); toast.add({ title: `已添加 ${selectedProduct.name} × ${addQuantity}`, type: 'success' });
   };
   const copy = async () => {
     if (rateUnits(exchangeRate) === null) {
@@ -265,7 +305,7 @@ export default function QuickPriceApp({ user }: Props) {
       toast.add({ title: '请先填写 USDT 汇率，再复制报价', type: 'warning' });
       return;
     }
-    try { await navigator.clipboard.writeText(quoteText(lines, products, exchangeRate, rateSource)); toast.add({ title: '报价已复制，包含 USDT 换算金额', type: 'success' }); }
+    try { await navigator.clipboard.writeText(quoteText(lines, products, exchangeRate, rateSource, { priceType: user.priceType })); toast.add({ title: user.priceType === 'cost' ? '成本清单已复制，包含 USDT 换算金额' : '报价已复制，包含 USDT 换算金额', type: 'success' }); }
     catch { setCopyOpen(true); }
   };
   const download = () => {
@@ -273,20 +313,20 @@ export default function QuickPriceApp({ user }: Props) {
       setRateError(true); document.getElementById('usdt-rate')?.focus();
       toast.add({ title: '请先填写有效汇率，再导出报价', type: 'warning' }); return;
     }
-    const url = URL.createObjectURL(new Blob([quoteCsv(lines, products, exchangeRate, rateSource)], { type: 'text/csv;charset=utf-8;' }));
-    const a = document.createElement('a'); a.href = url; a.download = quoteFilename(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast.add({ title: '报价已导出，可使用 Excel 打开', type: 'success' });
+    const url = URL.createObjectURL(new Blob([quoteCsv(lines, products, exchangeRate, rateSource, { priceType: user.priceType })], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a'); a.href = url; a.download = quoteFilename(new Date(), user.priceType); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast.add({ title: user.priceType === 'cost' ? '成本清单已导出，可使用 Excel 打开' : '报价已导出，可使用 Excel 打开', type: 'success' });
   };
 
 
   return <Toaster>
     <header className="topbar"><div className="nav-inner">
       <a className="brand" href="#main" aria-label="QuickPrice 首页"><span className="brand-icon"><Zap size={23} fill="currentColor" /></span><span>QuickPrice<span className="brand-sub">快速计价助手</span></span></a>
-      <div className="nav-actions"><button className="account-link" onClick={() => void signOut()} disabled={loggingOut || saving}>{loggingOut ? '正在退出…' : '退出登录'}</button><button className="nav-button" aria-label="商品价格库" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>商品库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
+      <div className="nav-actions"><details className="account-menu"><summary className="account-link">{accountLabel(user)}</summary><div className="account-menu-panel"><button type="button" onClick={() => setSwitchOpen(true)} disabled={saving || loggingOut}>切换账号</button><button type="button" onClick={() => void signOut()} disabled={loggingOut || saving}>{loggingOut ? '正在退出…' : '退出登录'}</button></div></details><button className="nav-button" aria-label="商品价格库" onClick={() => setCatalogOpen(true)}><Package size={17} /><span>商品库</span></button><button className="icon-button help-button" aria-label="使用说明" onClick={() => setHelpOpen(true)}><CircleHelp size={19} /></button></div>
     </div></header>
-    <main id="main" className={`workspace ${lines.length ? 'has-lines' : ''}`}>
+    <main id="main" className={`workspace ${lines.length ? 'has-lines' : ''}`} data-price-type={user.priceType}>
       <section className="page-heading"><div><div className="workspace-label"><span className="tiny-dot" />药品研发计价工作台</div><h1><span className="desktop-page-title"><TypingTitle text="每一笔，算得清楚。" /></span><span className="mobile-page-title"><TypingTitle text="快速计价" /></span></h1><p>为药物研发团队提供专业、高效的计价服务。</p></div><button className="secondary-button new-quote" onClick={() => setResetOpen(true)}><Plus size={17} />新建报价</button></section>
-      <div className="account-banner"><span>云端商品库 · {user.displayName}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button></div>
+      <div className="account-banner"><span>{accountLabel(user)}</span><button className="text-button" onClick={() => setCatalogOpen(true)}>{cloudError ? '加载失败，点击重试' : ready ? `${products.length} 条规格 · 管理商品` : '正在加载…'}</button></div>
       <div className="workspace-grid">
         <aside className="input-column">
           <section className="panel input-panel">
@@ -302,7 +342,7 @@ export default function QuickPriceApp({ user }: Props) {
               <TabsContent value="manual" className="manual-content"><form className="manual-form" onSubmit={e => { e.preventDefault(); addLine(); }}><div className={`category-field ${categories.length <= 1 ? 'single-category' : ''}`}><label htmlFor="category-select">产品品类</label><Select value={category} onValueChange={value => { const cat = String(value); setCategory(cat); setSelected(products.find(p => cat === 'all' || p.category === cat)?.id ?? ''); }}><SelectTrigger className="field-select" id="category-select" aria-label="产品品类"><SelectValue>{category === 'all' ? '全部品类' : category}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">全部品类</SelectItem>{categories.map(c => <SelectItem value={c} key={c}>{c}</SelectItem>)}</SelectContent></Select></div>
                 <p className="picker-label">选择商品</p><ProductPicker products={filteredProducts} value={selected} onChange={setSelected} label="选择产品，可搜索简称和名称" />
                 {selectedProduct && <p className="selected-product-description">{selectedProduct.name}{selectedProduct.specification ? ` · ${selectedProduct.specification}` : ''}</p>}
-                <div className="manual-price"><span>参考单价</span><strong>{selectedCents === null ? '待定' : `¥${money(selectedCents)}`}<small> / {selectedProduct?.unit || '件'}</small></strong></div>
+                <div className="manual-price"><span>{user.priceType === 'cost' ? '成本价' : '销售价'}</span><strong>{selectedCents === null ? '待录入' : `¥${money(selectedCents)}`}<small> / {selectedProduct?.unit || '件'}</small></strong></div>
                 <div className="quantity-heading"><label htmlFor="add-quantity">数量（{selectedProduct?.unit || '件'}）</label><span>本项 <strong>{entryAmount === null ? '待完善' : `¥${entryAmount}`}</strong></span></div><div className="stepper manual-stepper"><button type="button" aria-label="减少添加数量" disabled={(quantity ?? 0) <= 1} onClick={() => setAddQuantity(String(Math.max(1, (quantity ?? 1) - 1)))}><Minus size={18} /></button><input id="add-quantity" inputMode="numeric" enterKeyHint="done" value={addQuantity} aria-invalid={quantity === null} onChange={e => setAddQuantity(e.target.value)} /><button type="button" aria-label="增加添加数量" disabled={(quantity ?? 0) >= 999999} onClick={() => setAddQuantity(String((quantity ?? 0) + 1))}><Plus size={18} /></button></div><div className="quantity-presets" aria-label="常用数量">{[1, 5, 10, 20].map(n => <button type="button" key={n} aria-pressed={addQuantity === String(n)} onClick={() => setAddQuantity(String(n))}>{n}</button>)}</div>
                 <button className="primary-button calculate-button" type="submit" disabled={!ready || !selectedProduct}><Plus size={18} />添加到报价</button><p className="quiet-note">添加后可继续选品，或在明细中调整单价。</p></form>
               </TabsContent>
@@ -315,19 +355,19 @@ export default function QuickPriceApp({ user }: Props) {
         <section id="quote-results" className="results-column" aria-label="计价结果">
           <div className="stats-panel"><div className="stat"><span><Layers3 size={15} />计价项目</span><strong>{summary.count}<small>项</small></strong></div><div className="stat"><span><CheckCheck size={15} />已匹配</span><strong>{summary.matched}<small>项</small></strong></div><div className="stat"><span><ListChecks size={15} />精确匹配</span><strong>{summary.exact}<small>项</small></strong></div><div className="stat"><span><Package size={15} />已计价数量</span><strong>{summary.quantity}<small>总量</small></strong></div></div>
           <section className="panel detail-panel"><div className="details-heading"><div><h2>计价明细 <span className="count-badge">{summary.count}</span></h2><p>{isExample ? '当前为示例报价，可直接编辑体验' : '数量、单价修改后，金额实时更新'}</p></div><button className="text-button" onClick={() => setCatalogOpen(true)}><SlidersHorizontal size={15} /><span>价格库</span></button></div>
-            {lines.length > 0 ? <><div className="table-heading" aria-hidden="true"><span>产品描述 / 匹配</span><span>数量</span><span>单价（元）</span><span>金额（元）</span><span /></div>
-              <div className="quote-lines">{lines.map((line, index) => { const product = products.find(p => p.id === line.productId); const error = issue(line); const total = lineTotal(line); return <article className={`quote-line ${error ? 'has-issue' : ''}`} key={line.id} aria-label={`第 ${index + 1} 项 ${line.source}`}>
-                <div className="product-cell"><span className="row-index">{String(index + 1).padStart(2, '0')}</span><div className="product-control"><div className="source-label"><span title={line.source}>{line.source}</span>{line.productId && <span className="match-indicator" title={line.match === 'exact' ? '型号精确匹配' : '手动选择'}><Check size={11} />{line.match === 'exact' ? '已匹配' : '已选择'}</span>}</div><ProductPicker compact products={products} value={line.productId} onChange={value => selectProduct(line, value)} label={`第 ${index + 1} 项匹配产品，搜索简称或名称`} />{product && <span className="quote-product-description">{productLabel(product)} · {product.unit}</span>}</div></div>
-                <div className="quantity-cell"><label className="mobile-label" htmlFor={`qty-${line.id}`}>数量（{product?.unit || '件'}）</label><div className="stepper"><button aria-label={`减少第 ${index + 1} 项数量`} disabled={(quantityValue(line.quantity) ?? 0) <= 1} onClick={() => patchLine(line.id, { quantity: String(Math.max(1, (quantityValue(line.quantity) ?? 1) - 1)) })}><Minus size={12} /></button><input id={`qty-${line.id}`} aria-label={`第 ${index + 1} 项数量`} inputMode="numeric" value={line.quantity} aria-invalid={quantityValue(line.quantity) === null} onChange={e => patchLine(line.id, { quantity: e.target.value })} /><button aria-label={`增加第 ${index + 1} 项数量`} disabled={(quantityValue(line.quantity) ?? 0) >= 999999} onClick={() => patchLine(line.id, { quantity: String((quantityValue(line.quantity) ?? 0) + 1) })}><Plus size={12} /></button></div></div>
-                <div className="unit-price-cell"><label className="mobile-label" htmlFor={`price-${line.id}`}>单价（元）</label><input id={`price-${line.id}`} aria-label={`第 ${index + 1} 项单价`} className="price-input" inputMode="decimal" value={line.price} aria-invalid={moneyCents(line.price) === null} placeholder="待填写" onChange={e => patchLine(line.id, { price: e.target.value })} /></div>
-                <div className="line-amount"><span className="mobile-label">金额（元）</span><strong>{total === null ? '待完善' : money(total)}</strong></div>
+            {lines.length > 0 ? <><div className="table-heading" aria-hidden="true"><span>产品描述 / 匹配</span><span>数量</span><span>{user.priceType === 'cost' ? '成本价（元）' : '单价（元）'}</span><span>金额（元）</span><span /></div>
+              <div className="quote-lines">{lines.map((line, index) => { const product = products.find(p => p.id === line.productId) as PricedProduct | undefined; const snap = line.snapshot; const unit = snap?.unit || product?.unit || '件'; const live = product ? (user.priceType === 'cost' ? (product.costStatus === 'confirmed' ? product.costPrice ?? '' : '') : (product.salesPrice ?? product.price)) : ''; const stale = !!product && !line.manualPrice && live !== line.price; const error = issue(line); const total = lineTotal(line); return <article className={`quote-line ${error ? 'has-issue' : ''}`} key={line.id} aria-label={`第 ${index + 1} 项 ${line.source}`}>
+                <div className="product-cell"><span className="row-index">{String(index + 1).padStart(2, '0')}</span><div className="product-control"><div className="source-label"><span title={line.source}>{line.source}</span>{line.productId && <span className="match-indicator" title={line.match === 'exact' ? '型号精确匹配' : '手动选择'}><Check size={11} />{line.match === 'exact' ? '已匹配' : '已选择'}</span>}{line.manualPrice && <span className="match-indicator">手动调整</span>}</div><ProductPicker compact products={products} value={line.productId} onChange={value => selectProduct(line, value)} label={`第 ${index + 1} 项匹配产品，搜索简称或名称`} />{snap ? <span className="quote-product-description">{productLabel({ ...product, shortName: snap.shortName, name: snap.name, specification: snap.specification } as Product)} · {unit}</span> : product && <span className="quote-product-description">{productLabel(product)} · {product.unit}</span>}{stale && <span className="quiet-note">商品价格已更新，已有清单保留原单价</span>}</div></div>
+                <div className="quantity-cell"><label className="mobile-label" htmlFor={`qty-${line.id}`}>数量（{unit}）</label><div className="stepper"><button aria-label={`减少第 ${index + 1} 项数量`} disabled={(quantityValue(line.quantity) ?? 0) <= 1} onClick={() => patchLine(line.id, { quantity: String(Math.max(1, (quantityValue(line.quantity) ?? 1) - 1)) })}><Minus size={12} /></button><input id={`qty-${line.id}`} aria-label={`第 ${index + 1} 项数量`} inputMode="numeric" value={line.quantity} aria-invalid={quantityValue(line.quantity) === null} onChange={e => patchLine(line.id, { quantity: e.target.value })} /><button aria-label={`增加第 ${index + 1} 项数量`} disabled={(quantityValue(line.quantity) ?? 0) >= 999999} onClick={() => patchLine(line.id, { quantity: String((quantityValue(line.quantity) ?? 0) + 1) })}><Plus size={12} /></button></div></div>
+                <div className="unit-price-cell"><label className="mobile-label" htmlFor={`price-${line.id}`}>{user.priceType === 'cost' ? '成本价（元）' : '单价（元）'}</label><input id={`price-${line.id}`} aria-label={`第 ${index + 1} 项单价`} className="price-input" inputMode="decimal" value={line.price} aria-invalid={moneyCents(line.price) === null} placeholder="待填写" onChange={e => patchLine(line.id, { price: e.target.value, manualPrice: true })} /></div>
+                <div className="line-amount"><span className="mobile-label">金额（元）</span><strong>{total === null ? '待完善' : money(total)}</strong>{rateUnits(exchangeRate) !== null && moneyCents(line.price) !== null && lineUsdtCents(line, exchangeRate) !== null && <small>单价 {formatUsdtCents(usdtCents(moneyCents(line.price)!, exchangeRate)!)} USDT · 行 {formatUsdtCents(lineUsdtCents(line, exchangeRate)!)} USDT</small>}</div>
                 <button className="remove-line icon-button" aria-label={`删除第 ${index + 1} 项`} onClick={() => { setLines(ls => ls.filter(l => l.id !== line.id)); setIsExample(false); }}><X size={15} /></button>{error && <p className="line-error">{error}</p>}
-              </article>; })}</div></> : <div className="empty-state"><FileText size={34} /><h3>新报价，从第一项开始</h3><p>粘贴产品清单，或手动添加产品。</p><button className="text-button" onClick={() => { setText(sampleText); setLines(parseQuote(sampleText, products)); setIsExample(true); }}>使用示例清单 <ArrowRight size={14} /></button></div>}
+              </article>; })}</div></> : <div className="empty-state"><FileText size={34} /><h3>新报价，从第一项开始</h3><p>粘贴产品清单，或手动添加产品。</p><button className="text-button" onClick={() => { setText(sampleText); setLines(parseQuote(sampleText, products, { priceType: user.priceType })); setIsExample(true); }}>使用示例清单 <ArrowRight size={14} /></button></div>}
             <div className="details-footer"><span><span className={`tiny-dot ${summary.pending ? 'pending' : ''}`} />{summary.pending ? `${summary.pending} 项待完善，暂未计入合计` : lines.length ? '所有项目已计价' : '等待添加项目'}</span><button className="text-button" onClick={() => { setMode('manual'); document.querySelector('.input-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Plus size={14} />添加项目</button></div>
           </section>
-          <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{summary.pending ? '已确认金额' : '合计金额'}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · 单价 × 数量</span><span>{summary.pending ? '完善全部项目后可导出' : '核对后即可导出报价'}</span></div></section>
+          <section className="total-panel" aria-label="报价汇总"><div className="total-top"><div><h2>{user.priceType === 'cost' ? (summary.pending ? '已确认成本合计' : '成本合计') : (summary.pending ? '已确认金额' : '合计金额')}</h2><p>{summary.count} 项产品<span>·</span>已计价数量 {summary.quantity}</p></div><output className="total-amount" aria-live="polite" aria-atomic="true"><span>¥</span>{summary.safe ? money(summary.cents) : '金额超限'}</output></div><div className="total-bottom"><span><Check size={14} />人民币 CNY · {user.priceType === 'cost' ? '成本价' : '销售价'} × 数量</span><span>{summary.pending ? `${summary.pending} 项待完善，暂未计入` : '核对后即可导出'}</span></div></section>
           <div className="quote-actions">
-          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />复制报价</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" className={manualMode ? 'rate-restore' : undefined} onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label={manualMode ? '恢复自动汇率' : rateScheduled ? '重新读取最近发布的欧易 USDT 汇率' : '重新读取最近可用的 USDT 汇率'} title={manualMode ? '清除手动汇率，读取最近发布的行情' : rateScheduled ? '重新读取最近发布的欧易汇率；服务器每 2 分钟检查，超过 10 分钟未更新会提示，不会立即触发取数。' : '重新读取最近可用的 USDT 汇率'} aria-busy={rateLoading}>{rateLoading ? '更新中' : manualMode ? '恢复自动' : '最新'}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />导出报价<span className="export-format">CSV / Excel</span></button></div>
+          <div className="action-bar" data-empty={!lines.length}><button type="button" className="mobile-quote-summary" onClick={showResults}><span>{summary.count} 项商品{summary.pending ? ` · ${summary.pending} 项待完善` : ' · 查看明细'}</span><strong>{summary.safe ? `¥${money(summary.cents)}` : '金额超限'}</strong><ChevronDown size={16} /></button><button className="secondary-button copy-button" onClick={copy} disabled={!lines.length || !!summary.pending || !summary.safe}><Copy size={17} />{user.priceType === 'cost' ? '复制成本清单' : '复制报价'}</button><div className="inline-rate"><label htmlFor="usdt-rate">1 USDT = 人民币</label><div><input id="usdt-rate" inputMode="decimal" autoComplete="off" maxLength={13} placeholder={rateLoading ? "获取中…" : "输入汇率"} value={exchangeRate} onChange={e => updateRate(e.target.value)} aria-invalid={rateError || (!!exchangeRate && rateUnits(exchangeRate) === null)} aria-describedby="rate-hint" /><button type="button" className={manualMode ? 'rate-restore' : undefined} onClick={() => void refreshRate(true)} disabled={rateLoading} aria-label={manualMode ? '恢复自动汇率' : rateScheduled ? '重新读取最近发布的欧易 USDT 汇率' : '重新读取最近可用的 USDT 汇率'} title={manualMode ? '清除手动汇率，读取最近发布的行情' : rateScheduled ? '重新读取最近发布的欧易汇率；服务器每 2 分钟检查，超过 10 分钟未更新会提示，不会立即触发取数。' : '重新读取最近可用的 USDT 汇率'} aria-busy={rateLoading}>{rateLoading ? '更新中' : manualMode ? '恢复自动' : '最新'}</button></div></div><button className="primary-button export-button" onClick={download} disabled={!lines.length || !!summary.pending || !summary.safe}><Download size={18} />{user.priceType === 'cost' ? '导出成本清单' : '导出报价'}<span className="export-format">CSV / Excel</span></button></div>
           <p id="rate-hint" className="rate-status" role="status">{rateError || (!!exchangeRate && rateUnits(exchangeRate) === null) ? '请输入大于 0 的汇率，最多 6 位整数、6 位小数。' : rateMessage} · {summary.safe && quoteUsdtAmount(lines, exchangeRate) !== null ? `折合 ${quoteUsdtAmount(lines, exchangeRate)} USDT` : '待换算'}<a href={rateSourceUrl === KUCOIN_RATE_URL ? KUCOIN_RATE_PAGE : OKX_RATE_PAGE} title={rateSourceUrl === KUCOIN_RATE_URL ? 'KuCoin USDT 行情页（官网默认美元计价）' : '欧易 USDT/CNY 换算页'} target="_blank" rel="noopener noreferrer">行情来源</a></p>
           </div>
           <p className="session-note">商品库在云端保存；当前报价为临时清单，离开前请导出。</p>
@@ -336,9 +376,10 @@ export default function QuickPriceApp({ user }: Props) {
       <footer className="page-footer"><span className="footer-brand"><Zap size={13} />QuickPrice</span><span>研发清单，快速算清。</span></footer>
       <nav className="mobile-nav" aria-label="主要导航"><button type="button" className="mobile-nav-item is-active" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><FileText size={20} /><span>报价</span></button><button type="button" className="mobile-nav-item" onClick={() => setCatalogOpen(true)}><Package size={20} /><span>商品库</span></button><button type="button" className="mobile-nav-item" onClick={() => setHelpOpen(true)}><SlidersHorizontal size={20} /><span>设置</span></button></nav>
     </main>
-    <CatalogManager open={catalogOpen} onOpenChange={setCatalogOpen} products={products} ready={ready} saving={saving} cloudError={cloudError} updatedAt={updatedAt} onRefresh={refreshCatalog} onSave={saveCatalog} />
-    <Dialog open={helpOpen} onOpenChange={setHelpOpen}><DialogContent className="help-dialog" showCloseButton={false}><div className="dialog-heading"><DialogTitle>快速上手</DialogTitle><DialogClose className="icon-button" aria-label="关闭使用说明"><X size={20} /></DialogClose></div><DialogDescription>从客户清单到报价，只需三个步骤。</DialogDescription><ol className="help-list"><li><strong>输入型号与数量</strong><p>每行一个项目，支持 SM5×20、SM5*20、SM5x20 或 SM5 20盒。也可用分号分隔；逗号会分隔项目，请勿在数字中使用千位分隔符。</p></li><li><strong>核对匹配与单价</strong><p>支持产品简称、完整名称和名称加规格。不区分大小写；同名或同简称有多种规格时，请在匹配框搜索并选择具体规格，系统不会猜测价格。</p></li><li><strong>调整数量，导出报价</strong><p>数量为正整数，单价最多两位小数。人民币按分精确计算。USDT 先把单价四舍五入到分，再乘数量，合计为各行之和。全部项目完善后可复制报价或导出 Excel 可打开的 CSV 文件。</p></li></ol></DialogContent></Dialog>
+    <CatalogManager open={catalogOpen} onOpenChange={setCatalogOpen} products={products} ready={ready} saving={saving} cloudError={cloudError} updatedAt={updatedAt} actorId={user.userId} priceType={user.priceType} canEditMaster={user.canEditMaster} costRevision={costRevision} revision={revision} costAvailable={costAvailable} onRefresh={refreshCatalog} onSave={saveCatalog} onCreate={async body => { const response = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json() as { ok?: boolean; error?: string; code?: string; productId?: string; revision?: number; costRevision?: number }; if (response.ok) await refreshCatalog(); return data; }} onPatch={async (id, body) => { const response = await fetch(`/api/products/${id}/prices`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json() as { ok?: boolean; error?: string; code?: string; conflicts?: { field: string; cloud: string | null; typed: string | null }[] }; if (response.ok) await refreshCatalog(); return data; }} onCommitImport={async body => { const response = await fetch('/api/price-import/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json() as { ok?: boolean; error?: string; changes?: number }; if (response.ok) await refreshCatalog(); return data; }} onActivity={activity => { activityRef.current = activity; }} />
+    <Dialog open={helpOpen} onOpenChange={setHelpOpen}><DialogContent className="help-dialog" showCloseButton={false}><div className="dialog-heading"><DialogTitle>快速上手</DialogTitle><DialogClose className="icon-button" aria-label="关闭使用说明"><X size={20} /></DialogClose></div><DialogDescription>从客户清单到报价，只需三个步骤。</DialogDescription><section className="settings-account"><p>当前账号 {accountLabel(user)}</p><div className="import-actions"><button type="button" className="secondary-button" onClick={() => { setHelpOpen(false); setSwitchOpen(true); }}>切换账号</button><button type="button" className="text-button" onClick={() => void signOut()} disabled={loggingOut || saving}>退出登录</button></div></section><ol className="help-list"><li><strong>输入型号与数量</strong><p>每行一个项目，支持 SM5×20、SM5*20、SM5x20 或 SM5 20盒。也可用分号分隔；逗号会分隔项目，请勿在数字中使用千位分隔符。</p></li><li><strong>核对匹配与单价</strong><p>支持产品简称、完整名称和名称加规格。不区分大小写；同名或同简称有多种规格时，请在匹配框搜索并选择具体规格，系统不会猜测价格。</p></li><li><strong>调整数量，导出报价</strong><p>数量为正整数，单价最多两位小数。人民币按分精确计算。USDT 先把单价四舍五入到分，再乘数量，合计为各行之和。全部项目完善后可复制报价或导出 Excel 可打开的 CSV 文件。</p></li></ol></DialogContent></Dialog>
     <AlertDialog open={resetOpen} onOpenChange={setResetOpen}><AlertDialogContent><AlertDialogTitle>开始一份新报价？</AlertDialogTitle><AlertDialogDescription>当前清单和输入内容将清空。需要保留的报价，请先导出。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel>保留当前报价</AlertDialogCancel><AlertDialogAction type="button" onClick={startNewQuote}>新建报价</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <Dialog open={copyOpen} onOpenChange={setCopyOpen}><DialogContent><DialogTitle>手动复制报价</DialogTitle><DialogDescription>浏览器未允许自动复制，请长按或全选以下内容复制。</DialogDescription><textarea className="quote-textarea" readOnly value={rateUnits(exchangeRate) !== null ? quoteText(lines, products, exchangeRate, rateSource) : ''} onFocus={e => e.target.select()} aria-label="报价文本" /></DialogContent></Dialog>
+    <Dialog open={copyOpen} onOpenChange={setCopyOpen}><DialogContent><DialogTitle>{user.priceType === 'cost' ? '手动复制成本清单' : '手动复制报价'}</DialogTitle><DialogDescription>浏览器未允许自动复制，请长按或全选以下内容复制。</DialogDescription><textarea className="quote-textarea" readOnly value={rateUnits(exchangeRate) !== null ? quoteText(lines, products, exchangeRate, rateSource, { priceType: user.priceType }) : ''} onFocus={e => e.target.select()} aria-label="报价文本" /></DialogContent></Dialog>
+    <AccountSwitch open={switchOpen} onOpenChange={setSwitchOpen} current={user} hasQuote={lines.length > 0} draft={activityRef.current} busy={saving} />
   </Toaster>;
 }
