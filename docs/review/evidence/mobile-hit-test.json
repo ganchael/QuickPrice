@@ -1,0 +1,64 @@
+{
+  "source_css_375x667": {
+    "bar": {
+      "top": 548,
+      "bottom": 667,
+      "h": 119,
+      "z": 30,
+      "bottomCss": "0px"
+    },
+    "nav": {
+      "top": 599,
+      "h": 68,
+      "z": 40
+    },
+    "overlapY": 68,
+    "copyHit": false,
+    "exportHit": false,
+    "latestHit": false,
+    "hitTarget": "mobile-nav-item"
+  },
+  "hotfix_css_375x667": {
+    "bar": {
+      "top": 536,
+      "bottom": 617,
+      "h": 81,
+      "z": 41,
+      "bottomCss": "50px"
+    },
+    "nav": {
+      "top": 617,
+      "h": 50,
+      "z": 40
+    },
+    "copyHit": true,
+    "exportHit": true,
+    "latestHit": true
+  },
+  "source_css_390x844": {
+    "bar": {
+      "top": 725,
+      "bottom": 844,
+      "h": 119,
+      "z": 30
+    },
+    "nav": {
+      "top": 776,
+      "h": 68,
+      "z": 40
+    },
+    "overlapY": 68,
+    "copyHit": false,
+    "exportHit": false,
+    "latestHit": false
+  },
+  "hotfix_css_390x844": {
+    "barBottomCss": "68px",
+    "z": 41,
+    "copyHit": true,
+    "exportHit": true,
+    "latestHit": true
+  },
+  "desktop_1440x900_empty_action_bar_top": 1106,
+  "note": "Measurements from elementFromPoint in headless Chrome with isMobile and hasTouch, pointer:coarse."
+}
