@@ -37,7 +37,7 @@ input,output,strong { font-variant-numeric: tabular-nums; }
 button svg { flex-shrink: 0; }
 h1,h2,h3,p { margin: 0; }
 a { text-decoration: none; color: inherit; }
-.topbar { height: 78px; background: rgba(253,254,254,.95); border-bottom: 1px solid var(--border); }
+.topbar { height: 78px; position: relative; z-index: 35; background: rgba(253,254,254,.95); border-bottom: 1px solid var(--border); }
 .nav-inner { max-width: 1240px; height: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 11px; font-size: 23px; font-weight: 660; letter-spacing: -.7px; }
 .brand-icon { width: 39px; height: 39px; border-radius: 12px; color: var(--primary-foreground); display: grid; place-items: center; background: var(--primary); box-shadow: inset 0 1px 1px rgba(239,248,255,.4), 0 3px 6px rgba(18,92,184,.12); }

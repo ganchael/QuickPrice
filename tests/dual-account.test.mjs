@@ -7,7 +7,7 @@ import { acceptLateResponse, compareUnit, comparisonCsv, comparisonStatusLabel, 
 import { clearManualRate, MANUAL_RATE_KEY, manualRateStorageKey, readManualRate, writeManualRate } from '../lib/manual-rate.ts';
 import { lineSnapshot, parseQuote, quoteCsv, quoteText, summarize } from '../lib/pricing.ts';
 import { quoteFilename } from '../lib/quote-export.ts';
-import { applyMaster, commitPrices, createProduct, patchPrices, readShared } from '../lib/price-store.ts';
+import { applyMaster, commitPrices, createProduct, patchPrices, readComparison, readShared } from '../lib/price-store.ts';
 
 const salesUser = { userId: 'account:888', displayName: '888', priceType: 'sales', canEditMaster: true };
 const costUser = { userId: 'account:111', displayName: '111', priceType: 'cost', canEditMaster: false };
@@ -347,6 +347,75 @@ test('A21 cost failure does not block sales, and migration rollback keeps the ca
   db.exec(readFileSync(new URL('../drizzle/0004_cost_prices_rollback.sql', import.meta.url), 'utf8'));
   assert.deepEqual(db.prepare('SELECT products_json, revision, updated_at FROM catalogs').get(), before);
   assert.throws(() => db.prepare('SELECT * FROM product_cost_prices').all());
+});
+
+test('cost read failure rejects specification, unit and deletion changes without blocking sales or rename', async () => {
+  const db = openDb();
+  const product = item('a', { specification: '5mg', unit: '瓶' });
+  putCatalog(db, [product]);
+  let state = await readShared(db, salesUser);
+  await patchPrices(db, costUser, 'a', { requestId: req(), expectedActorId: costUser.userId, catalogRevision: state.revision, costRevision: state.costRevision, seenFingerprint: state.products[0].specFingerprint, cost: { amount: '3.00', baseline: null } });
+  state = await readShared(db, salesUser);
+  const failingDb = {
+    ...db,
+    prepare(sql) {
+      if (sql.includes('FROM product_cost_prices')) throw new Error('temporary cost read failure');
+      return db.prepare(sql);
+    },
+  };
+  const before = {
+    catalog: db.raw.prepare('SELECT * FROM catalogs').all(),
+    costs: db.raw.prepare('SELECT * FROM product_cost_prices').all(),
+    book: db.raw.prepare('SELECT * FROM cost_price_book_state').all(),
+    batches: db.raw.prepare('SELECT * FROM price_change_batches').all(),
+  };
+  for (const products of [[{ ...product, specification: '10mg' }], [{ ...product, unit: '盒' }], []]) {
+    await assert.rejects(() => applyMaster(failingDb, salesUser, { expectedActorId: salesUser.userId, catalogRevision: state.revision, costRevision: state.costRevision, products }), error => error.status === 503 && error.details.code === 'cost-unavailable' && /同步后重试/.test(error.message));
+    assert.deepEqual(db.raw.prepare('SELECT * FROM catalogs').all(), before.catalog);
+    assert.deepEqual(db.raw.prepare('SELECT * FROM product_cost_prices').all(), before.costs);
+    assert.deepEqual(db.raw.prepare('SELECT * FROM cost_price_book_state').all(), before.book);
+    assert.deepEqual(db.raw.prepare('SELECT * FROM price_change_batches').all(), before.batches);
+  }
+  const sales = await applyMaster(failingDb, salesUser, { expectedActorId: salesUser.userId, catalogRevision: state.revision, costRevision: state.costRevision, products: [{ ...product, price: '12.00' }] });
+  assert.equal(sales.revision, state.revision + 1);
+  const renamed = await applyMaster(failingDb, salesUser, { expectedActorId: salesUser.userId, catalogRevision: sales.revision, costRevision: state.costRevision, products: [{ ...product, price: '12.00', name: '新名称' }] });
+  state = await readShared(db, costUser);
+  assert.equal(state.revision, renamed.revision);
+  assert.equal(state.products[0].salesPrice, '12.00');
+  assert.equal(state.products[0].name, '新名称');
+  assert.equal(state.products[0].costPrice, '3.00');
+  assert.equal(state.products[0].costStatus, 'confirmed');
+  assert.deepEqual(db.raw.prepare('SELECT * FROM product_cost_prices').all(), before.costs);
+});
+
+test('mismatched cost fingerprints stay pending and can be reconfirmed at the same price', async () => {
+  const db = openDb();
+  putCatalog(db, [item('a', { specification: '10mg', unit: '盒' })]);
+  const oldFingerprint = specFingerprint('5mg', '瓶');
+  db.raw.prepare('INSERT INTO product_cost_prices (catalog_id, product_id, cost_cents, spec_fingerprint, status, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)').run('account:888', 'a', 300, oldFingerprint, 'confirmed', updatedAt, costUser.userId);
+  let state = await readShared(db, costUser);
+  assert.equal(state.products[0].costStatus, 'pending');
+  assert.equal(state.products[0].costPrice, '3.00');
+  assert.equal(state.products[0].price, '');
+  const quote = parseQuote('商品a × 2', state.products, { priceType: 'cost' });
+  assert.equal(summarize(quote).pending, 1);
+  assert.equal(summarize(quote).cents, 0);
+  const comparison = await readComparison(db, salesUser);
+  assert.equal(comparison.rows[0].compared.diffCents, null);
+  assert.equal(comparison.rows[0].compared.rate, null);
+  await patchPrices(db, costUser, 'a', { requestId: req(), expectedActorId: costUser.userId, catalogRevision: state.revision, costRevision: state.costRevision, seenFingerprint: state.products[0].specFingerprint, cost: { amount: '3.00', baseline: 300 } });
+  state = await readShared(db, costUser);
+  assert.equal(state.products[0].costStatus, 'confirmed');
+  assert.equal(state.products[0].price, '3.00');
+  assert.equal(db.raw.prepare('SELECT spec_fingerprint FROM product_cost_prices').get().spec_fingerprint, state.products[0].specFingerprint);
+  db.raw.prepare('UPDATE product_cost_prices SET spec_fingerprint = ?').run(oldFingerprint);
+  state = await readShared(db, costUser);
+  const imported = await commitPrices(db, costUser, { requestId: req(), expectedActorId: costUser.userId, catalogRevision: state.revision, costRevision: state.costRevision, target: 'cost', skipProblems: false, rows: [{ productId: 'a', cost: { amount: '3.00', baseline: 300 } }] });
+  assert.equal(imported.changes, 1);
+  state = await readShared(db, costUser);
+  assert.equal(state.products[0].costStatus, 'confirmed');
+  assert.equal(state.products[0].price, '3.00');
+  assert.equal(db.raw.prepare('SELECT spec_fingerprint FROM product_cost_prices').get().spec_fingerprint, state.products[0].specFingerprint);
 });
 
 test('A24 A25 A30 A31 create, queues, sync interval and import cancel boundary', async () => {

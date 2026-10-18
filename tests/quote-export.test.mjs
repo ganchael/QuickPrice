@@ -7,6 +7,23 @@ import { read, utils } from 'xlsx';
 test('export filename uses local calendar date and time through minutes', () => {
   assert.equal(quoteFilename(new Date(2026, 8, 12, 0, 5)), '多肽报价清单_2026年09月12日_00时05分.csv');
 });
+test('sales and cost CSV preserve category snapshots and support older snapshots', () => {
+  const product = { id: 'category-qa', shortName: 'QA', name: '合成商品', specification: '5mg', unit: '盒', category: '原品类', price: '12.00', aliases: [], salesPrice: '12.00', costPrice: '5.00', costStatus: 'confirmed' };
+  for (const priceType of ['sales', 'cost']) {
+    const lines = parseQuote('QA × 2', [product], { priceType });
+    const category = (quote, products) => {
+      const book = read(quoteCsv(quote, products, undefined, undefined, { priceType }), { type: 'string' });
+      const rows = utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1 });
+      return rows[priceType === 'cost' ? 2 : 1][5];
+    };
+    assert.equal(category(lines, [product]), '原品类');
+    assert.equal(category(lines, [{ ...product, category: '后改品类' }]), '原品类');
+    assert.equal(category(lines, []), '原品类');
+    const older = structuredClone(lines);
+    delete older[0].snapshot.category;
+    assert.equal(category(older, [product]), '原品类');
+  }
+});
 test('manual CNY per USDT rate divides amounts and rounds half up accurately', () => {
   assert.equal(usdtAmount(200000, '7.2'), '277.78');
   assert.equal(usdtAmount(1, '2'), '0.01');

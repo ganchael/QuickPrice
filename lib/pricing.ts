@@ -1,6 +1,6 @@
 import { formatUsdtCents, formatUsdtPlain, rateUnits, usdtCents } from './quote-export.ts';
 export type Product = { id: string; shortName: string; name: string; specification: string; unit: string; category: string; price: string; aliases: string[] };
-export type QuoteSnapshot = { shortName: string; name: string; specification: string; unit: string; priceType: 'sales' | 'cost' };
+export type QuoteSnapshot = { shortName: string; name: string; specification: string; unit: string; category?: string; priceType: 'sales' | 'cost' };
 export type QuoteLine = { id: string; source: string; parsed: string; productId: string; quantity: string; price: string; match: 'exact' | 'manual' | 'none'; manualPrice?: boolean; snapshot?: QuoteSnapshot | null };
 export const productsSeed: Product[] = [
   { id: 'gnd10', name: 'GND10', shortName: 'GND10', specification: '', unit: '件', category: 'GND 系列', price: '75.00', aliases: [] },
@@ -56,7 +56,7 @@ function unitPrice(product: Product, priceType?: 'sales' | 'cost') {
   return product.price;
 }
 export function lineSnapshot(product: Product, priceType: 'sales' | 'cost'): QuoteSnapshot {
-  return { shortName: product.shortName, name: product.name, specification: product.specification, unit: product.unit, priceType };
+  return { shortName: product.shortName, name: product.name, specification: product.specification, unit: product.unit, category: product.category, priceType };
 }
 export function summarize(lines: QuoteLine[]) {
   const valid = lines.filter(l => lineTotal(l) !== null);
@@ -110,7 +110,7 @@ function described(line: QuoteLine, products: Product[]) {
   if (line.snapshot) {
     const snap = line.snapshot;
     const short = snap.shortName.trim() && normalize(snap.shortName) !== normalize(snap.name) ? snap.shortName.trim() : '';
-    return { label: [short, snap.name, snap.specification].filter(Boolean).join(' · '), unit: snap.unit || '件', name: snap.name, shortName: snap.shortName || snap.name, specification: snap.specification, category: '' };
+    return { label: [short, snap.name, snap.specification].filter(Boolean).join(' · '), unit: snap.unit || '件', name: snap.name, shortName: snap.shortName || snap.name, specification: snap.specification, category: snap.category ?? products.find(product => product.id === line.productId)?.category ?? '' };
   }
   const product = products.find(item => item.id === line.productId);
   return { label: product ? productLabel(product) : line.source, unit: product?.unit || '件', name: product?.name ?? '', shortName: product ? productDisplayName(product) : '', specification: product?.specification ?? '', category: product?.category ?? '' };
@@ -143,7 +143,7 @@ export function quoteCsv(lines: QuoteLine[], products: Product[], rate?: string,
   const cell = (v: string | number) => { let s = String(v); if (/^[\s]*[=+@-]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   const s = summarize(lines);
   const priceHeader = priceType === 'cost' ? '成本单价（元）' : '单价（元）';
-  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', priceHeader, '金额（元）', '状态'], ...lines.map((l, i) => { const describedLine = described(l, products); const product = products.find(p => p.id === l.productId); return [i + 1, l.source, describedLine.shortName, describedLine.name, describedLine.specification, l.snapshot ? '' : product?.category ?? '', describedLine.unit, l.quantity, csvUnitPrice(l.price), lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', priceType === 'cost' ? '已确认成本合计' : '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
+  const rows: (string | number)[][] = [['序号', '原始描述', '产品简称', '产品名称', '规格', '品类', '单位', '数量', priceHeader, '金额（元）', '状态'], ...lines.map((l, i) => { const describedLine = described(l, products); return [i + 1, l.source, describedLine.shortName, describedLine.name, describedLine.specification, describedLine.category, describedLine.unit, l.quantity, csvUnitPrice(l.price), lineTotal(l) === null ? '' : (lineTotal(l)! / 100).toFixed(2), issue(l) || '已计价']; }), ['', '', '', priceType === 'cost' ? '已确认成本合计' : '已确认合计', '', '', '', s.quantity, '', (s.cents / 100).toFixed(2), s.pending ? `${s.pending} 项未计入` : '全部已计价']];
   if (rate !== undefined) {
     rows[0].push('单价（USDT）', '金额（USDT）', '汇率（人民币/USDT）');
     lines.forEach((line, i) => {
